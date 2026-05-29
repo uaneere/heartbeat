@@ -1,0 +1,27 @@
+build/
+DerivedData/
+*.xcuserdatad
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+project.xcworkspace/xcuserdata/
+project.xcworkspace/*.xcuserstate
+xcuserdata/
+xcschememanagement.plist
+
+# Скомпилированные приложения
+*.app/
+*.dylib
+*.ipa
+*.dSYM/
+
+# Файлы сборки
+PkgInfo
+*.nib
+**/CodeResources
+**/__preview.dylib
+
+# Системные файлы
+.DS_Store
