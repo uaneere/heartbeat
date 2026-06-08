@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		461EE39E2FC9EB5C003EA4EB /* HeartBeat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = HeartBeat.app; path = "/Users/irinanovikova/Projects/heartbeat/client/HeartBeat/build/Debug-iphoneos/HeartBeat.app"; sourceTree = "<absolute>"; };
+		460495E82FCF0078000F1E26 /* HeartBeat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeartBeat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		461EE3FB2FC9EFC9003EA4EB /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -35,6 +35,7 @@
 			children = (
 				461EE3A02FC9EB5C003EA4EB /* HeartBeat */,
 				461EE3FB2FC9EFC9003EA4EB /* .gitignore */,
+				460495E82FCF0078000F1E26 /* HeartBeat.app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -60,7 +61,7 @@
 			packageProductDependencies = (
 			);
 			productName = HeartBeat;
-			productReference = 461EE39E2FC9EB5C003EA4EB /* HeartBeat.app */;
+			productReference = 460495E82FCF0078000F1E26 /* HeartBeat.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
