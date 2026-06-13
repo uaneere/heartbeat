@@ -27,7 +27,7 @@ struct ProfileInputField: View {
 }
 
 // MARK: Сегмент-Контрол
-struct ProfileSegmentedControl: View {
+struct SegmentedControl: View {
     let options: [String]
     @State var selectedOption: String
 

@@ -27,7 +27,7 @@ struct ProfileView: View {
                             Text("ПОЛ")
                                 .font(.system(size: 11, weight: .bold))
                                 . foregroundColor(.textSecondary)
-                            ProfileSegmentedControl(options: ["Мужской", "Женский"], selectedOption: "Мужской")
+                            SegmentedControl(options: ["Мужской", "Женский"], selectedOption: "Мужской")
                         }
 
                         HStack(spacing: 16) {
@@ -149,9 +149,3 @@ struct ProfileView: View {
         }
     }
 }
-
-
-#Preview {
-    ProfileView()
-}
-

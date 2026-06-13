@@ -4,7 +4,7 @@ import SwiftUI
 struct HeartBeatApp: App {
     var body: some Scene {
         WindowGroup {
-            ProfileView()
+            MainTabView()
         }
     }
 }
