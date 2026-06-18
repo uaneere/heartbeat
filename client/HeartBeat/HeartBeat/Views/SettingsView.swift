@@ -1,46 +1,19 @@
 import SwiftUI
 
-
-struct TrainingGoal: Identifiable {
-    let id = UUID()
-    let title: String
-    let icon: String
-}
-
 struct SettingsView: View {
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) var dismiss
 
-    @State private var selectedActivity: String = "Бег"
-    @State private var selectedGoal: String = "Общая форма"
-    @State private var selectedTempo: String = "Среднее"
-
-    // Список всех целей (заглушка данных)
-    let goals = [
-        TrainingGoal(title: "Жиросжигание", icon: "flame.fill"),
-        TrainingGoal(title: "Спринт", icon: "bolt.horizontal.fill"),
-        TrainingGoal(title: "Восстановление", icon: "heart.fill"),
-        TrainingGoal(title: "Общая форма", icon: "waveform.path.ecg"),
-        TrainingGoal(title: "Антистресс", icon: "wind"),
-        TrainingGoal(title: "Разминка", icon: "sun.max.fill"),
-        TrainingGoal(title: "Заминка", icon: "snowflake")
-    ]
-
-    let activityColumns = [
-        GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())
-    ]
-
     var body: some View {
+        @Bindable var state = appState
+
         VStack(spacing: 0) {
-            // MARK: - Header
             headerView
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
-
-                    // MARK: - Тип активности
                     activitySection
 
-                    // MARK: - Цель тренировки
                     VStack(alignment: .leading, spacing: 12) {
                         Text("ЦЕЛЬ ТРЕНИРОВКИ")
                             .font(.system(size: 11, weight: .bold))
@@ -48,24 +21,21 @@ struct SettingsView: View {
                             .tracking(1.0)
 
                         FlowLayout(spacing: 8) {
-                            ForEach(goals) { goal in
+                            ForEach(GoalType.allCases, id: \.self) { goal in
                                 GoalChip(
                                     icon: goal.icon,
-                                    title: goal.title,
-                                    isSelected: selectedGoal == goal.title
+                                    title: goal.displayName,
+                                    isSelected: state.sessionSettings.goal == goal
                                 ) {
-                                    selectedGoal = goal.title
+                                    state.sessionSettings.goal = goal
                                 }
                             }
                         }
                     }
 
-                    // MARK: - Предпочтение темпа
                     tempoSection
 
-                    // MARK: - Кнопка 'Применить'
                     applyButton
-
                 }
                 .padding(.horizontal, 24)
             }
@@ -96,22 +66,24 @@ struct SettingsView: View {
     }
 
     private var activitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text("ТИП АКТИВНОСТИ")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.textSecondary)
                 .tracking(1.0)
 
-            LazyVGrid(columns: activityColumns, spacing: 12) {
-                ActivityTile(icon: "bolt.fill", title: "Бег", isSelected: selectedActivity == "Бег") { selectedActivity = "Бег" }
-                ActivityTile(icon: "figure.walk", title: "Ходьба", isSelected: selectedActivity == "Ходьба") { selectedActivity = "Ходьба" }
-                ActivityTile(icon: "dumbbell.fill", title: "Зал", isSelected: selectedActivity == "Зал") { selectedActivity = "Зал" }
-                ActivityTile(icon: "bicycle", title: "Велосипед", isSelected: selectedActivity == "Велосипед") { selectedActivity = "Велосипед" }
-                ActivityTile(icon: "brain.head.profile", title: "Медитация", isSelected: selectedActivity == "Медитация") { selectedActivity = "Медитация" }
-                ActivityTile(icon: "moon.fill", title: "Сон", isSelected: selectedActivity == "Сон") { selectedActivity = "Сон" }
-                ActivityTile(icon: "book.fill", title: "Учёба", isSelected: selectedActivity == "Учёба") { selectedActivity = "Учёба" }
-                ActivityTile(icon: "laurel.leading", title: "Йога", isSelected: selectedActivity == "Йога") { selectedActivity = "Йога" }
-                ActivityTile(icon: "gamecontroller.fill", title: "Игры", isSelected: selectedActivity == "Игры") { selectedActivity = "Игры" }
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(ActivityType.allCases, id: \.self) { activity in
+                    ActivityTile(
+                        icon: activity.icon,
+                        title: activity.displayName,
+                        isSelected: appState.sessionSettings.activityType == activity
+                    ) {
+                        appState.sessionSettings.activityType = activity
+                    }
+                }
             }
         }
     }
@@ -123,14 +95,28 @@ struct SettingsView: View {
                 .foregroundColor(.textSecondary)
                 .tracking(1.0)
 
-            SegmentedControl(options: ["Медленно", "Среднее", "Быстро"], selectedOption: selectedTempo)
-
+            SegmentedControl(
+                options: TempoPreference.allCases.map(\.displayName),
+                selectedOption: Binding(
+                    get: { appState.sessionSettings.tempoPreference.displayName },
+                    set: { name in
+                        if let tempo = TempoPreference.allCases.first(where: { $0.displayName == name }) {
+                            appState.sessionSettings.tempoPreference = tempo
+                        }
+                    }
+                )
+            )
         }
     }
 
     private var applyButton: some View {
-        Button(action: { dismiss() }) {
-            Text("Применить")
+        Button {
+            Task {
+                await appState.applySessionSettings()
+                dismiss()
+            }
+        } label: {
+            Text(appState.isLoading ? "Применение..." : "Применить")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -139,6 +125,7 @@ struct SettingsView: View {
                 .cornerRadius(32)
                 .shadow(color: .primaryWine.opacity(0.3), radius: 10, x: 0, y: 5)
         }
+        .disabled(appState.isLoading)
         .padding(.top, 10)
         .padding(.bottom, 20)
     }
@@ -146,4 +133,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environment(AppState())
 }

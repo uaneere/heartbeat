@@ -6,9 +6,6 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from uuid import UUID
 from enum import Enum
-from datetime import datetime
-
-
 class ActivityType(str, Enum):
     """Типы активностей"""
     RUNNING = "running"
@@ -90,6 +87,10 @@ class HeartRateResponse(BaseModel):
     """Ответ на обновление пульса"""
     success: bool
     tick: int
+    current_hr: int
+    heart_rate_zone: int
+    heart_rate_zone_label: str
+    target_bpm: int
     message: str = "OK"
 
 
@@ -107,9 +108,12 @@ class GenerateResponse(BaseModel):
     genre: str = Field(..., description="Жанр")
     energy: EnergyLevel = Field(..., description="Энергия трека")
     mood: str = Field(..., description="Настроение")
+    track_title: str = Field(..., description="Название трека для UI")
     duration_seconds: int = Field(..., description="Длительность в секундах")
     tick: int = Field(..., description="Номер тика")
     fragment_file: str = Field(..., description="Имя файла")
+    heart_rate_zone: int = Field(..., description="Зона пульса 1-5")
+    heart_rate_zone_label: str = Field(..., description="Название зоны пульса")
 
 
 class SessionStatusResponse(BaseModel):
@@ -119,7 +123,18 @@ class SessionStatusResponse(BaseModel):
     current_hr: int
     activity_type: ActivityType
     goal: GoalType
+    tempo_preference: TempoPreference
     is_active: bool
+    heart_rate_zone: int
+    heart_rate_zone_label: str
+    target_bpm: int
+    last_bpm: Optional[int] = None
+    last_genre: Optional[str] = None
+
+
+class UpdateSessionContextRequest(BaseModel):
+    """Обновление настроек активной сессии"""
+    session: SessionContext
 
 
 class HealthResponse(BaseModel):

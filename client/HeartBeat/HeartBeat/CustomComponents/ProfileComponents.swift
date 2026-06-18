@@ -1,27 +1,28 @@
 import SwiftUI
 
-
 // MARK: - Поле ввода данных
 struct ProfileInputField: View {
     let title: String
     let placeholder: String
-    @State var text: String = ""
+    @Binding var text: String
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.textSecondary)
-                .tracking(1.0)
+            if !title.isEmpty {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.textSecondary)
+                    .tracking(1.0)
+            }
 
             TextField("", text: $text, prompt: Text(placeholder).foregroundColor(.textSecondary.opacity(0.4)))
+                .keyboardType(title.contains("ВОЗРАСТ") || title.contains("ПУЛЬС") || title.contains("РОСТ") || title.contains("ВЕС") || title.isEmpty ? .numberPad : .default)
                 .padding(.horizontal, 16)
                 .frame(height: 54)
                 .background(.accentBackground)
                 .cornerRadius(16)
                 .foregroundColor(.textMain)
                 .font(.system(size: 16, weight: .medium))
-
         }
     }
 }
@@ -29,7 +30,7 @@ struct ProfileInputField: View {
 // MARK: Сегмент-Контрол
 struct SegmentedControl: View {
     let options: [String]
-    @State var selectedOption: String
+    @Binding var selectedOption: String
 
     var body: some View {
         HStack(spacing: 0) {
@@ -55,7 +56,7 @@ struct SegmentedControl: View {
 // MARK: - Элемент списка заболеваний
 struct DiseaseRow: View {
     let title: String
-    @State var isChecked: Bool = false
+    @Binding var isChecked: Bool
 
     var body: some View {
         HStack(spacing: 16) {
@@ -90,6 +91,7 @@ struct MusicGenreCard: View {
     let title: String
     let imageName: String
     let isSelected: Bool
+    let onTap: () -> Void
 
     var body: some View {
         VStack {
@@ -103,7 +105,7 @@ struct MusicGenreCard: View {
             }
         }
         .frame(width: 140, height: 180)
-        .background(.green)
+        .background(isSelected ? Color.primaryWine : Color.green.opacity(0.7))
         .cornerRadius(24)
         .overlay(
             VStack {
@@ -127,7 +129,6 @@ struct MusicGenreCard: View {
                 Spacer()
             }
         )
+        .onTapGesture(perform: onTap)
     }
 }
-
-

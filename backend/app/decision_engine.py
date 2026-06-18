@@ -36,6 +36,30 @@ def get_heart_rate_zone(intensity: float) -> int:
         return 5  # Max
 
 
+def get_heart_rate_zone_label(zone: int) -> str:
+    """Человекочитаемое название зоны пульса"""
+    labels = {
+        1: "Восстановление",
+        2: "Жиросжигание",
+        3: "Кардио",
+        4: "Анаэробная",
+        5: "Максимум",
+    }
+    return labels.get(zone, "Кардио")
+
+
+def build_track_title(genre: str, mood: str, bpm: int) -> str:
+    """Название трека для отображения в клиенте"""
+    mood_titles = {
+        "calming": "Спокойствие",
+        "relaxing": "Релакс",
+        "motivational": "Мотивация",
+        "energetic": "Энергия",
+    }
+    prefix = mood_titles.get(mood, "Пульс")
+    return f"{prefix} · {genre.title()}"
+
+
 def calculate_target_bpm(
     activity: ActivityType,
     current_hr: int,

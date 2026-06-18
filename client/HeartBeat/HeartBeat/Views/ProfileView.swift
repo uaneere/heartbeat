@@ -1,16 +1,17 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @State private var hasDiseases: Bool = true
+    @Environment(AppState.self) private var appState
 
     var body: some View {
+        @Bindable var profile = appState.userProfile
+
         ZStack {
             Color.colorBackground
                 .ignoresSafeArea()
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 24) {
-
                     HStack {
                         Text("Профиль")
                             .font(.system(size: 34, weight: .bold))
@@ -21,18 +22,32 @@ struct ProfileView: View {
                     .padding(.top, 16)
 
                     VStack(spacing: 20) {
-                        ProfileInputField(title: "ВОЗРАСТ", placeholder: "Например, 20")
+                        ProfileInputField(
+                            title: "ВОЗРАСТ",
+                            placeholder: "Например, 20",
+                            text: $profile.age
+                        )
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("ПОЛ")
                                 .font(.system(size: 11, weight: .bold))
-                                . foregroundColor(.textSecondary)
-                            SegmentedControl(options: ["Мужской", "Женский"], selectedOption: "Мужской")
+                                .foregroundColor(.textSecondary)
+                            SegmentedControl(
+                                options: Gender.allCases.map(\.title),
+                                selectedOption: Binding(
+                                    get: { profile.gender.title },
+                                    set: { title in
+                                        if let gender = Gender.allCases.first(where: { $0.title == title }) {
+                                            profile.gender = gender
+                                        }
+                                    }
+                                )
+                            )
                         }
 
                         HStack(spacing: 16) {
-                            ProfileInputField(title: "РОСТ (СМ)", placeholder: "175")
-                            ProfileInputField(title: "ВЕС (КГ)", placeholder: "70")
+                            ProfileInputField(title: "РОСТ (СМ)", placeholder: "175", text: $profile.height)
+                            ProfileInputField(title: "ВЕС (КГ)", placeholder: "70", text: $profile.weight)
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -41,17 +56,17 @@ struct ProfileView: View {
                                 .foregroundColor(.textSecondary)
                                 .tracking(1.0)
                             HStack(spacing: 12) {
-                                ProfileInputField(title: "", placeholder: "120")
+                                ProfileInputField(title: "", placeholder: "120", text: $profile.systolicPressure)
                                 Text("/")
                                     .font(.system(size: 20, weight: .light))
                                     .foregroundColor(.textSecondary)
-                                ProfileInputField(title: "", placeholder: "80")
+                                ProfileInputField(title: "", placeholder: "80", text: $profile.diastolicPressure)
                             }
                         }
 
                         HStack(spacing: 16) {
-                            ProfileInputField(title: "ПУЛЬС (ПОКОЙ)", placeholder: "65")
-                            ProfileInputField(title: "ПУЛЬС (АКТИВ)", placeholder: "130")
+                            ProfileInputField(title: "ПУЛЬС (ПОКОЙ)", placeholder: "65", text: $profile.restingHr)
+                            ProfileInputField(title: "ПУЛЬС (АКТИВ)", placeholder: "130", text: $profile.activeHr)
                         }
                     }
                     .padding(24)
@@ -70,35 +85,45 @@ struct ProfileView: View {
                                 Text("Нет")
                                     .font(.system(size: 14, weight: .semibold))
                                     .frame(width: 50, height: 34)
-                                    .background(!hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(!hasDiseases ? .white : .textSecondary)
+                                    .background(!profile.hasDiseases ? .primaryWine : .clear)
+                                    .foregroundColor(!profile.hasDiseases ? .white : .textSecondary)
                                     .cornerRadius(10)
-                                    .onTapGesture{hasDiseases = false}
+                                    .onTapGesture { profile.hasDiseases = false }
 
                                 Text("Есть")
                                     .font(.system(size: 14, weight: .semibold))
                                     .frame(width: 50, height: 34)
-                                    .background(hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(hasDiseases ? .white : .textSecondary)
+                                    .background(profile.hasDiseases ? .primaryWine : .clear)
+                                    .foregroundColor(profile.hasDiseases ? .white : .textSecondary)
                                     .cornerRadius(10)
-                                    .onTapGesture { hasDiseases = true }
+                                    .onTapGesture { profile.hasDiseases = true }
                             }
                             .padding(3)
                             .background(.accentBackground)
                             .cornerRadius(12)
                         }
 
-                        if hasDiseases {
+                        if profile.hasDiseases {
                             Divider()
                                 .background(.textSecondary.opacity(0.2))
                                 .padding(.vertical, 4)
 
                             VStack(spacing: 18) {
-                                DiseaseRow(title: "Гипертония")
-                                DiseaseRow(title: "Аритмия")
-                                DiseaseRow(title: "Бронхиальная астма")
-                                DiseaseRow(title: "Сахарный диабет")
-                                DiseaseRow(title: "Ишемическая болезнь")
+                                ForEach(ConditionMapping.items, id: \.apiKey) { item in
+                                    DiseaseRow(
+                                        title: item.title,
+                                        isChecked: Binding(
+                                            get: { profile.selectedConditions.contains(item.apiKey) },
+                                            set: { checked in
+                                                if checked {
+                                                    profile.selectedConditions.insert(item.apiKey)
+                                                } else {
+                                                    profile.selectedConditions.remove(item.apiKey)
+                                                }
+                                            }
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
@@ -115,22 +140,36 @@ struct ProfileView: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 14) {
-                                MusicGenreCard(title: "Классика", imageName: "classic", isSelected: false)
-                                MusicGenreCard(title: "Поп", imageName: "pop", isSelected: false)
-                                MusicGenreCard(title: "Рок", imageName: "rock", isSelected: false)
-                                MusicGenreCard(title: "Электроника", imageName: "electro", isSelected: false)
-                                MusicGenreCard(title: "Джаз", imageName: "jazz", isSelected: false)
-                                MusicGenreCard(title: "Lo-Fi", imageName: "lofi", isSelected: false)
-                                MusicGenreCard(title: "Фонк", imageName: "fonk", isSelected: false)
+                                ForEach(GenreMapping.items, id: \.apiKey) { genre in
+                                    MusicGenreCard(
+                                        title: genre.title,
+                                        imageName: genre.imageName,
+                                        isSelected: profile.selectedGenres.contains(genre.apiKey),
+                                        onTap: {
+                                            if profile.selectedGenres.contains(genre.apiKey) {
+                                                profile.selectedGenres.remove(genre.apiKey)
+                                            } else {
+                                                profile.selectedGenres.insert(genre.apiKey)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                             .padding(.horizontal, 24)
                             .padding(.bottom, 10)
                         }
                     }
 
-                    Button(action: {
-                        print("Настройки сохранены")
-                    }) {
+                    if let error = appState.errorMessage {
+                        Text(error)
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 24)
+                    }
+
+                    Button {
+                        appState.saveProfile()
+                    } label: {
                         Text("Сохранить настройки")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.white)
@@ -145,7 +184,11 @@ struct ProfileView: View {
                     .padding(.bottom, 32)
                 }
             }
-
         }
     }
+}
+
+#Preview {
+    ProfileView()
+        .environment(AppState())
 }

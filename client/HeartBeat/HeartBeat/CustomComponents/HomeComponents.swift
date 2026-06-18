@@ -85,40 +85,50 @@ struct  BPMIndicator: View {
 
 // MARK: - Карточка музыкальной генерации
 struct MusicPlayerCard: View {
+    let trackTitle: String
+    let genre: String
+    let bpm: Int
+    let isPlaying: Bool
+    let isGenerating: Bool
+    let onPlayToggle: () -> Void
+
     var body: some View {
         HStack(spacing: 16) {
-            // заглушка обложки
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(white: 0.9))
+                    .fill(
+                        LinearGradient(
+                            colors: [.orange.opacity(0.8), .primaryWine],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 60, height: 60)
 
-                VStack(spacing: 2) {
-                    Text("Cover")
-                        .font(.system(size: 10))
-                    Image(systemName: "questionmark.square")
-                }
-                .foregroundColor(.blue)
+                Image(systemName: "waveform")
+                    .font(.system(size: 24))
+                    .foregroundColor(.white)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("ГЕНЕРАЦИЯ - 135 BPM")
+                Text(isGenerating ? "ГЕНЕРАЦИЯ..." : "ГЕНЕРАЦИЯ — \(bpm) BPM")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.orange)
 
-                Text("Power Rush")
+                Text(trackTitle)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.textMain)
+                    .lineLimit(1)
 
-                Text("EDM Mix")
+                Text(genre.capitalized)
                     .font(.system(size: 14))
                     .foregroundColor(.textSecondary)
             }
 
             Spacer()
 
-            Button(action: {}) {
-                Image(systemName: "play.fill")
+            Button(action: onPlayToggle) {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .foregroundColor(.orange)
                     .frame(width: 40, height: 40)
                     .background(Color.orange.opacity(0.1))

@@ -22,6 +22,9 @@ from app.decision_engine import (
     select_energy,
     select_mood,
     build_prompt,
+    build_track_title,
+    get_heart_rate_zone,
+    get_heart_rate_zone_label,
 )
 from app.audio_utils import get_filename_from_path, get_audio_url
 from app.config import CHUNK_DURATION_SEC, AUDIO_DIR
@@ -95,22 +98,19 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
-    
-    # Обновляем сессию
+
+    session.tick += 1
     update_session(
         session_id,
         last_fragment_path=audio_path,
         last_bpm=bpm,
         last_genre=genre,
-        tick=session.tick + 1,
+        tick=session.tick,
     )
-    
-    # Инкрементируем tick
-    session.tick += 1
-    
-    # Формируем ответ
+
     filename = get_filename_from_path(audio_path)
-    
+    zone = get_heart_rate_zone(intensity)
+
     return GenerateResponse(
         success=True,
         audio_url=get_audio_url(filename),
@@ -118,9 +118,12 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         genre=genre,
         energy=energy,
         mood=mood,
+        track_title=build_track_title(genre, mood, bpm),
         duration_seconds=int(CHUNK_DURATION_SEC),
         tick=session.tick,
         fragment_file=filename,
+        heart_rate_zone=zone,
+        heart_rate_zone_label=get_heart_rate_zone_label(zone),
     )
 
 

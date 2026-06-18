@@ -1,6 +1,6 @@
 import Foundation
 
-enum Gender {
+enum Gender: String, Codable, CaseIterable {
     case male, female
 
     var title: String {
@@ -10,5 +10,3 @@ enum Gender {
         }
     }
 }
-
-

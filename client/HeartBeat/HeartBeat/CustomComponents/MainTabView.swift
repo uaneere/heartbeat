@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(AppState.self) private var appState
     @State private var selectedTab = 0
 
     init() {
@@ -9,7 +10,7 @@ struct MainTabView: View {
         appearance.backgroundColor = .white
 
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(.textSecondary)
-        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor:UIColor(.textSecondary)]
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor(.textSecondary)]
 
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(.primaryWine)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor(.primaryWine)]
@@ -33,9 +34,7 @@ struct MainTabView: View {
                     Text("Профиль")
                 }
                 .tag(1)
-
         }
         .accentColor(.primaryWine)
     }
 }
-
