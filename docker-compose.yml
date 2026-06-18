@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MUSICGEN_MODEL=medium
+      - MUSICGEN_DURATION=15
+      - MUSICGEN_PRELOAD=1
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
