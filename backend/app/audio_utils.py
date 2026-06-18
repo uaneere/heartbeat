@@ -2,12 +2,15 @@
 Утилиты для работы с аудио (crossfade, чтение/запись)
 """
 
+import logging
 import os
 import numpy as np
 import soundfile as sf
 from datetime import datetime
 
 from app.config import AUDIO_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def read_mono(path: str) -> tuple[np.ndarray, int]:
@@ -27,49 +30,73 @@ def write_audio(samples: np.ndarray, sample_rate: int, prefix: str = "audio") ->
     return path
 
 
-def crossfade_files(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
+def _resample_if_needed(audio: np.ndarray, src_sr: int, target_sr: int) -> np.ndarray:
+    if src_sr == target_sr:
+        return audio
+    from scipy import signal
+    logger.warning("Resampling from %s to %s", src_sr, target_sr)
+    new_len = int(len(audio) * target_sr / src_sr)
+    return signal.resample(audio, new_len)
+
+
+def _equal_power_crossfade(tail: np.ndarray, head: np.ndarray) -> np.ndarray:
+    fade_samples = min(len(tail), len(head))
+    if fade_samples <= 0:
+        return np.array([], dtype=np.float32)
+    tail = tail[-fade_samples:]
+    head = head[:fade_samples]
+    x = np.linspace(0, np.pi / 2, fade_samples)
+    fade_out = np.cos(x) ** 2
+    fade_in = np.sin(x) ** 2
+    return tail * fade_out + head * fade_in
+
+
+def create_transition_bridge(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
     """
-    Простой рабочий crossfade между двумя файлами
-    
-    Args:
-        file_a: Первый файл
-        file_b: Второй файл
-        fade_seconds: Длительность перехода в секундах
-    
-    Returns:
-        Путь к склеенному файлу
+    Создаёт короткий файл-переход: хвост file_a плавно переходит в начало file_b.
+  Используется при смене отрывков в плеере.
     """
-    # Читаем оба файла
     audio_a, sr_a = read_mono(file_a)
     audio_b, sr_b = read_mono(file_b)
-    
-    # Ресэмплинг если нужно
-    if sr_a != sr_b:
-        from scipy import signal
-        logger.warning(f"Resampling from {sr_b} to {sr_a}")
-        audio_b = signal.resample(audio_b, int(len(audio_b) * sr_a / sr_b))
-        sr_b = sr_a
-    
-    # Количество семплов для fade
+    audio_b = _resample_if_needed(audio_b, sr_b, sr_a)
+
     fade_samples = min(int(fade_seconds * sr_a), len(audio_a), len(audio_b))
-    
+    if fade_samples <= 0:
+        return write_audio(np.array([], dtype=np.float32), sr_a, "transition")
+
+    bridge = _equal_power_crossfade(audio_a[-fade_samples:], audio_b[:fade_samples])
+    return write_audio(bridge, sr_a, "transition")
+
+
+def create_loop_bridge(file_path: str, fade_seconds: float = 2.0) -> str:
+    """
+    Создаёт плавный переход конец→начало одного отрывка.
+    Используется, когда следующий отрывок ещё не готов.
+    """
+    audio, sr = read_mono(file_path)
+    fade_samples = min(int(fade_seconds * sr), len(audio) // 2)
+    if fade_samples <= 0:
+        return write_audio(np.array([], dtype=np.float32), sr, "loop_bridge")
+
+    bridge = _equal_power_crossfade(audio[-fade_samples:], audio[:fade_samples])
+    return write_audio(bridge, sr, "loop_bridge")
+
+
+def crossfade_files(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
+    """Склеивает два файла с crossfade (полный merge, для офлайн-склейки)."""
+    audio_a, sr_a = read_mono(file_a)
+    audio_b, sr_b = read_mono(file_b)
+    audio_b = _resample_if_needed(audio_b, sr_b, sr_a)
+
+    fade_samples = min(int(fade_seconds * sr_a), len(audio_a), len(audio_b))
     if fade_samples <= 0:
         merged = np.concatenate([audio_a, audio_b])
     else:
-        # Обрезаем конец первого и начало второго
-        tail = audio_a[-fade_samples:]
-        head = audio_b[:fade_samples]
         body_a = audio_a[:-fade_samples]
         body_b = audio_b[fade_samples:]
-        
-        # Equal-power crossfade
-        x = np.linspace(0, np.pi/2, fade_samples)
-        fade_out = np.cos(x) ** 2
-        fade_in = np.sin(x) ** 2
-        
-        crossfaded = tail * fade_out + head * fade_in
+        crossfaded = _equal_power_crossfade(audio_a, audio_b)
         merged = np.concatenate([body_a, crossfaded, body_b])
-    
+
     return write_audio(merged, sr_a, "crossfade")
 
 

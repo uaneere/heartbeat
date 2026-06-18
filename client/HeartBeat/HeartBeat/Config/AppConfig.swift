@@ -5,5 +5,6 @@ enum AppConfig {
     static let apiBaseURL = "http://127.0.0.1:8000"
 
     static let heartRatePollInterval: TimeInterval = 3.0
-    static let prefetchBeforeEnd: TimeInterval = 8.0
+    /// Crossfade на сервере (см. MUSICGEN_CROSSFADE), для справки
+    static let crossfadeDuration: TimeInterval = 2.0
 }

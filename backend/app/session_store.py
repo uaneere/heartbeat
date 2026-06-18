@@ -20,6 +20,10 @@ class SessionState:
     movement_intensity: float = 0.5
     stress_level: float = 0.3
     last_fragment_path: Optional[str] = None
+    last_raw_fragment_path: Optional[str] = None
+    last_loop_bridge_path: Optional[str] = None
+    last_transition_path: Optional[str] = None
+    fragment_index: int = 0
     last_bpm: Optional[int] = None
     last_genre: Optional[str] = None
     

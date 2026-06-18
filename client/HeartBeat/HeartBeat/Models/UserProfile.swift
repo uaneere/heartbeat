@@ -62,24 +62,56 @@ struct SessionSettings: Codable {
     }
 }
 
-struct CurrentTrack: Equatable {
+/// Один сгенерированный отрывок + вспомогательные файлы для переходов
+struct MusicFragment: Equatable {
     let title: String
     let genre: String
     let bpm: Int
     let mood: String
-    let audioURL: URL
-    let durationSeconds: Int
+    let fragmentIndex: Int
+    let fragmentURL: URL
+    let fragmentDuration: Int
+    let transitionURL: URL?
+    let transitionDuration: Int
+    let loopBridgeURL: URL?
+    let loopBridgeDuration: Int
 
     init(from response: GenerateResponse, baseURL: String) {
         title = response.trackTitle
         genre = response.genre
         bpm = response.bpm
         mood = response.mood
-        durationSeconds = response.durationSeconds
-        if response.audioUrl.hasPrefix("http") {
-            audioURL = URL(string: response.audioUrl)!
-        } else {
-            audioURL = URL(string: baseURL + response.audioUrl)!
+        fragmentIndex = response.fragmentIndex
+        fragmentDuration = response.durationSeconds
+        transitionDuration = response.transitionDurationSeconds
+        loopBridgeDuration = response.loopBridgeDurationSeconds
+
+        fragmentURL = Self.makeURL(response.audioUrl, baseURL: baseURL)
+        transitionURL = response.transitionAudioUrl.map { Self.makeURL($0, baseURL: baseURL) }
+        loopBridgeURL = response.loopBridgeUrl.map { Self.makeURL($0, baseURL: baseURL) }
+    }
+
+    private static func makeURL(_ path: String, baseURL: String) -> URL {
+        if path.hasPrefix("http") {
+            return URL(string: path)!
         }
+        return URL(string: baseURL + path)!
+    }
+}
+
+/// Для UI-плеера на главном экране
+struct CurrentTrack: Equatable {
+    let title: String
+    let genre: String
+    let bpm: Int
+    let mood: String
+    let fragmentIndex: Int
+
+    init(from fragment: MusicFragment) {
+        title = fragment.title
+        genre = fragment.genre
+        bpm = fragment.bpm
+        mood = fragment.mood
+        fragmentIndex = fragment.fragmentIndex
     }
 }
