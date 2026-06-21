@@ -144,6 +144,9 @@ def calculate_gradual_bpm(
     if abs(diff) <= step:
         return target_bpm
     return last_bpm + step if diff > 0 else last_bpm - step
+
+
+def build_track_title(genre: str, mood: str, bpm: int) -> str:
     """Название трека для отображения в клиенте"""
     mood_titles = {
         "calming": "Спокойствие",
@@ -162,29 +165,16 @@ def calculate_target_bpm(
     max_hr: int,
     goal: GoalType,
     tempo_preference: TempoPreference,
+    conditions: Optional[List[str]] = None,
 ) -> int:
-    """Расчет целевого BPM на основе пульса и активности"""
-    
-    # База от активности
-    activity_base = {
-        ActivityType.SLEEP: 60,
-        ActivityType.MEDITATION: 70,
-        ActivityType.STUDYING: 85,
-        ActivityType.WALKING: 105,
-        ActivityType.YOGA: 95,
-        ActivityType.CYCLING: 120,
-        ActivityType.GYM: 125,
-        ActivityType.RUNNING: 130,
-        ActivityType.GAMING: 110,
-    }
-    
-    base_bpm = activity_base.get(activity, 110)
-    
-    # Корректировка по интенсивности (BPM ~ 60-80% от HR)
+    """Расчёт целевого BPM: база от активности + коррекция по пульсу, цели и темпу."""
+    conditions = conditions or []
+
+    base_bpm = _ACTIVITY_TARGET_BPM.get(activity, 110)
+
     intensity = calculate_intensity(current_hr, resting_hr, max_hr)
     hr_bpm = int(current_hr * (0.6 + intensity * 0.2))
-    
-    # Корректировка по цели
+
     goal_adjustments = {
         GoalType.FAT_BURNING: -5,
         GoalType.SPRINT: +20,
@@ -194,20 +184,20 @@ def calculate_target_bpm(
         GoalType.WARMUP: -10,
         GoalType.COOLDOWN: -15,
     }
-    
-    # Корректировка по темпу
+
     tempo_adjustments = {
         TempoPreference.SLOW: -15,
         TempoPreference.MEDIUM: 0,
         TempoPreference.FAST: +15,
     }
-    
-    bpm = (base_bpm + hr_bpm) // 2
+
+    # 60% веса — вид активности, 40% — текущий пульс
+    bpm = int(base_bpm * 0.6 + hr_bpm * 0.4)
     bpm += goal_adjustments.get(goal, 0)
     bpm += tempo_adjustments.get(tempo_preference, 0)
-    
-    # Ограничения
-    return max(60, min(180, bpm))
+
+    bpm = max(60, min(180, bpm))
+    return _apply_conditions_bpm_cap(bpm, conditions)
 
 
 def select_genre(
@@ -215,37 +205,35 @@ def select_genre(
     preferred_genres: List[str],
     intensity: float,
 ) -> str:
-    """Выбор жанра на основе активности и предпочтений"""
-    
-    # Жанры по активности
+    """
+    Выбор жанра: пересечение любимых жанров с подходящими для активности.
+    Если пересечения нет — жанр из списка активности (не из любимых).
+    """
     activity_genres = {
         ActivityType.RUNNING: ["edm", "techno", "drum and bass", "house"],
         ActivityType.GYM: ["techno", "metal", "rock", "hardstyle"],
         ActivityType.CYCLING: ["house", "progressive house", "trance"],
         ActivityType.WALKING: ["chill electronic", "lofi", "downtempo"],
         ActivityType.YOGA: ["ambient", "lofi", "piano", "acoustic"],
-        ActivityType.MEDITATION: ["ambient", "meditation", "nature sounds"],
+        ActivityType.MEDITATION: ["ambient", "lofi", "meditation", "nature sounds"],
         ActivityType.SLEEP: ["ambient", "piano", "white noise"],
         ActivityType.STUDYING: ["lofi", "classical", "jazz", "ambient"],
         ActivityType.GAMING: ["electronic", "synthwave", "chiptune"],
     }
-    
+
     genres = activity_genres.get(activity, ["electronic", "house"])
-    
-    # Если есть предпочтения пользователя
+
     if preferred_genres:
         for pref in preferred_genres:
-            if any(pref.lower() in g.lower() for g in genres):
-                return pref
-        return preferred_genres[0]
-    
-    # Выбор по интенсивности
+            for activity_genre in genres:
+                if _genres_match(activity_genre, pref):
+                    return pref
+
     if intensity > 0.7:
-        return genres[0]  # Более энергичный
-    elif intensity < 0.3:
-        return genres[-1]  # Более спокойный
-    else:
-        return genres[min(1, len(genres)-1)]
+        return genres[0]
+    if intensity < 0.3:
+        return genres[-1]
+    return genres[min(1, len(genres) - 1)]
 
 
 def select_energy(bpm: int) -> EnergyLevel:
@@ -258,16 +246,18 @@ def select_energy(bpm: int) -> EnergyLevel:
         return EnergyLevel.HIGH
 
 
-def select_mood(intensity: float, is_stress: bool = False) -> str:
-    """Выбор настроения"""
-    if is_stress:
+def select_mood(intensity: float, is_stress: bool = False, conditions: Optional[List[str]] = None) -> str:
+    """Выбор настроения с учётом стресса и хронических заболеваний."""
+    conditions = conditions or []
+    condition_set = {c.lower() for c in conditions}
+
+    if is_stress or condition_set & {"hypertension", "arrhythmia", "ischemic_heart_disease"}:
         return "calming"
     if intensity > 0.7:
         return "energetic"
-    elif intensity > 0.3:
+    if intensity > 0.3:
         return "motivational"
-    else:
-        return "relaxing"
+    return "relaxing"
 
 
 def build_prompt(

@@ -19,13 +19,14 @@ from app.decision_engine import (
     calculate_max_heart_rate,
     calculate_intensity,
     calculate_target_bpm,
+    calculate_gradual_bpm,
+    get_heart_rate_zone,
+    get_heart_rate_zone_label,
     select_genre,
     select_energy,
     select_mood,
     build_prompt,
     build_track_title,
-    get_heart_rate_zone,
-    get_heart_rate_zone_label,
 )
 from app.audio_utils import (
     get_filename_from_path,
@@ -171,6 +172,12 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         max_hr=max_hr,
         goal=session.context.goal,
         tempo_preference=session.context.tempo_preference,
+        conditions=session.profile.conditions,
+    )
+    track_bpm = calculate_gradual_bpm(
+        target_bpm=bpm,
+        last_bpm=session.last_bpm,
+        conditions=session.profile.conditions,
     )
 
     genre = select_genre(
@@ -179,12 +186,12 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         intensity=intensity,
     )
 
-    energy = select_energy(bpm)
+    energy = select_energy(track_bpm)
     is_stress = session.stress_level > 0.7
-    mood = select_mood(intensity, is_stress)
+    mood = select_mood(intensity, is_stress, conditions=session.profile.conditions)
 
     prompt = build_prompt(
-        bpm=bpm,
+        bpm=track_bpm,
         genre=genre,
         energy=energy,
         mood=mood,
@@ -201,7 +208,7 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
             last_raw_fragment_path=session.last_raw_fragment_path,
             fragment_index=session.fragment_index,
             tick=session.tick,
-            bpm=bpm,
+            bpm=track_bpm,
             genre=genre,
             energy=energy,
             mood=mood,

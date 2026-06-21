@@ -27,6 +27,7 @@ def compute_session_metrics(session: SessionState) -> dict:
         max_hr=max_hr,
         goal=session.context.goal,
         tempo_preference=session.context.tempo_preference,
+        conditions=session.profile.conditions,
     )
     return {
         "heart_rate_zone": zone,
