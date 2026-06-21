@@ -11,9 +11,22 @@
 		461EE3FB2FC9EFC9003EA4EB /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		460EB5D62FE4188C0071A54C /* Exceptions for "HeartBeat" folder in "HeartBeat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 461EE39D2FC9EB5C003EA4EB /* HeartBeat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		461EE3A02FC9EB5C003EA4EB /* HeartBeat */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				460EB5D62FE4188C0071A54C /* Exceptions for "HeartBeat" folder in "HeartBeat" target */,
+			);
 			path = HeartBeat;
 			sourceTree = "<group>";
 		};

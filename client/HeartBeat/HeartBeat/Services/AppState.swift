@@ -152,6 +152,10 @@ final class AppState {
             simulatedHR = max(resting, simulatedHR + step)
         }
         currentHR = simulatedHR
+
+        let safeHR = min(active, max(resting, simulatedHR))
+        simulatedHR = safeHR
+        currentHR = safeHR
     }
 
     // MARK: - Music generation

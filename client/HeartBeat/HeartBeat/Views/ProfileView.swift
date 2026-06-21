@@ -4,7 +4,7 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        @Bindable var profile = appState.userProfile
+        @Bindable var appState = appState
 
         ZStack {
             Color.colorBackground
@@ -25,7 +25,7 @@ struct ProfileView: View {
                         ProfileInputField(
                             title: "ВОЗРАСТ",
                             placeholder: "Например, 20",
-                            text: $profile.age
+                            text: $appState.userProfile.age
                         )
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -35,10 +35,10 @@ struct ProfileView: View {
                             SegmentedControl(
                                 options: Gender.allCases.map(\.title),
                                 selectedOption: Binding(
-                                    get: { profile.gender.title },
+                                    get: { appState.userProfile.gender.title },
                                     set: { title in
                                         if let gender = Gender.allCases.first(where: { $0.title == title }) {
-                                            profile.gender = gender
+                                            appState.userProfile.gender = gender
                                         }
                                     }
                                 )
@@ -46,8 +46,8 @@ struct ProfileView: View {
                         }
 
                         HStack(spacing: 16) {
-                            ProfileInputField(title: "РОСТ (СМ)", placeholder: "175", text: $profile.height)
-                            ProfileInputField(title: "ВЕС (КГ)", placeholder: "70", text: $profile.weight)
+                            ProfileInputField(title: "РОСТ (СМ)", placeholder: "175", text: $appState.userProfile.height)
+                            ProfileInputField(title: "ВЕС (КГ)", placeholder: "70", text: $appState.userProfile.weight)
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -56,17 +56,17 @@ struct ProfileView: View {
                                 .foregroundColor(.textSecondary)
                                 .tracking(1.0)
                             HStack(spacing: 12) {
-                                ProfileInputField(title: "", placeholder: "120", text: $profile.systolicPressure)
+                                ProfileInputField(title: "", placeholder: "120", text: $appState.userProfile.systolicPressure)
                                 Text("/")
                                     .font(.system(size: 20, weight: .light))
                                     .foregroundColor(.textSecondary)
-                                ProfileInputField(title: "", placeholder: "80", text: $profile.diastolicPressure)
+                                ProfileInputField(title: "", placeholder: "80", text: $appState.userProfile.diastolicPressure)
                             }
                         }
 
                         HStack(spacing: 16) {
-                            ProfileInputField(title: "ПУЛЬС (ПОКОЙ)", placeholder: "65", text: $profile.restingHr)
-                            ProfileInputField(title: "ПУЛЬС (АКТИВ)", placeholder: "130", text: $profile.activeHr)
+                            ProfileInputField(title: "ПУЛЬС (ПОКОЙ)", placeholder: "65", text: $appState.userProfile.restingHr)
+                            ProfileInputField(title: "ПУЛЬС (АКТИВ)", placeholder: "130", text: $appState.userProfile.activeHr)
                         }
                     }
                     .padding(24)
@@ -85,25 +85,25 @@ struct ProfileView: View {
                                 Text("Нет")
                                     .font(.system(size: 14, weight: .semibold))
                                     .frame(width: 50, height: 34)
-                                    .background(!profile.hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(!profile.hasDiseases ? .white : .textSecondary)
+                                    .background(!appState.userProfile.hasDiseases ? .primaryWine : .clear)
+                                    .foregroundColor(!appState.userProfile.hasDiseases ? .white : .textSecondary)
                                     .cornerRadius(10)
-                                    .onTapGesture { profile.hasDiseases = false }
+                                    .onTapGesture { appState.userProfile.hasDiseases = false }
 
                                 Text("Есть")
                                     .font(.system(size: 14, weight: .semibold))
                                     .frame(width: 50, height: 34)
-                                    .background(profile.hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(profile.hasDiseases ? .white : .textSecondary)
+                                    .background(appState.userProfile.hasDiseases ? .primaryWine : .clear)
+                                    .foregroundColor(appState.userProfile.hasDiseases ? .white : .textSecondary)
                                     .cornerRadius(10)
-                                    .onTapGesture { profile.hasDiseases = true }
+                                    .onTapGesture { appState.userProfile.hasDiseases = true }
                             }
                             .padding(3)
                             .background(.accentBackground)
                             .cornerRadius(12)
                         }
 
-                        if profile.hasDiseases {
+                        if appState.userProfile.hasDiseases {
                             Divider()
                                 .background(.textSecondary.opacity(0.2))
                                 .padding(.vertical, 4)
@@ -113,12 +113,12 @@ struct ProfileView: View {
                                     DiseaseRow(
                                         title: item.title,
                                         isChecked: Binding(
-                                            get: { profile.selectedConditions.contains(item.apiKey) },
+                                            get: { appState.userProfile.selectedConditions.contains(item.apiKey) },
                                             set: { checked in
                                                 if checked {
-                                                    profile.selectedConditions.insert(item.apiKey)
+                                                    appState.userProfile.selectedConditions.insert(item.apiKey)
                                                 } else {
-                                                    profile.selectedConditions.remove(item.apiKey)
+                                                    appState.userProfile.selectedConditions.remove(item.apiKey)
                                                 }
                                             }
                                         )
@@ -144,12 +144,12 @@ struct ProfileView: View {
                                     MusicGenreCard(
                                         title: genre.title,
                                         imageName: genre.imageName,
-                                        isSelected: profile.selectedGenres.contains(genre.apiKey),
+                                        isSelected: appState.userProfile.selectedGenres.contains(genre.apiKey),
                                         onTap: {
-                                            if profile.selectedGenres.contains(genre.apiKey) {
-                                                profile.selectedGenres.remove(genre.apiKey)
+                                            if appState.userProfile.selectedGenres.contains(genre.apiKey) {
+                                                appState.userProfile.selectedGenres.remove(genre.apiKey)
                                             } else {
-                                                profile.selectedGenres.insert(genre.apiKey)
+                                                appState.userProfile.selectedGenres.insert(genre.apiKey)
                                             }
                                         }
                                     )
@@ -186,9 +186,4 @@ struct ProfileView: View {
             }
         }
     }
-}
-
-#Preview {
-    ProfileView()
-        .environment(AppState())
 }
