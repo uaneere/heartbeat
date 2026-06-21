@@ -106,6 +106,8 @@ struct CurrentTrack: Equatable {
     let bpm: Int
     let mood: String
     let fragmentIndex: Int
+    let audioURL: URL
+    let durationSeconds: Int
 
     init(from fragment: MusicFragment) {
         title = fragment.title
@@ -113,5 +115,7 @@ struct CurrentTrack: Equatable {
         bpm = fragment.bpm
         mood = fragment.mood
         fragmentIndex = fragment.fragmentIndex
+        audioURL = fragment.fragmentURL
+        durationSeconds = fragment.fragmentDuration
     }
 }

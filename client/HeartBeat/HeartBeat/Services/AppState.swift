@@ -24,15 +24,7 @@ final class AppState {
     private let api = APIClient()
     private var heartRateTimer: Timer?
     private var simulatedHR: Int = 65
-
-    /// Текущий отрывок, который крутится в плеере
-    private var playingFragment: MusicFragment?
-    /// Следующий отрывок, уже сгенерированный и ждущий своей очереди
-    private var readyNextFragment: MusicFragment?
-    /// Фоновая задача генерации
-    private var generationTask: Task<Void, Never>?
-    /// Цикл воспроизведения (fragment → loop → fragment …)
-    private var playbackTask: Task<Void, Never>?
+    private var isPrefetching = false
 
     // MARK: - Profile
 
@@ -60,8 +52,6 @@ final class AppState {
                 try? await api.endSession(sessionId: existingId)
             }
 
-            stopPlaybackPipeline()
-
             let response = try await api.startSession(
                 profile: userProfile.toAPIProfile(),
                 context: sessionSettings.toAPIContext()
@@ -73,21 +63,9 @@ final class AppState {
             simulatedHR = response.currentHr
 
             startHeartRatePolling()
-
-            // Первый отрывок: ждём полной генерации, потом сразу стартуем второй в фоне
-            isGenerating = true
-            let first = try await fetchFragment()
-            isGenerating = false
-
-            playingFragment = first
-            currentTrack = CurrentTrack(from: first)
-            applyFragmentMetadata(first)
-
-            startGeneratingNext()
-            startPlaybackLoop()
+            await generateNextTrack()
         } catch {
             errorMessage = error.localizedDescription
-            isGenerating = false
         }
 
         isLoading = false
@@ -96,7 +74,7 @@ final class AppState {
     func stopWorkout() async {
         heartRateTimer?.invalidate()
         heartRateTimer = nil
-        stopPlaybackPipeline()
+        audioPlayer.stop()
 
         if let sessionId {
             try? await api.endSession(sessionId: sessionId)
@@ -105,8 +83,6 @@ final class AppState {
         sessionId = nil
         isSessionActive = false
         currentTrack = nil
-        playingFragment = nil
-        readyNextFragment = nil
     }
 
     func applySessionSettings() async {
@@ -119,9 +95,7 @@ final class AppState {
                 context: sessionSettings.toAPIContext()
             )
             applyStatus(status)
-            // Перегенерировать следующий отрывок с новыми настройками
-            readyNextFragment = nil
-            startGeneratingNext()
+            await generateNextTrack()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -165,13 +139,15 @@ final class AppState {
         }
     }
 
+    /// Симуляция пульса до подключения HealthKit / BLE
     private func simulateHeartRate() {
         let resting = Int(userProfile.restingHr) ?? 65
         let active = Int(userProfile.activeHr) ?? 130
+        let target = active
         let step = Int.random(in: -2...4)
 
-        if simulatedHR < active {
-            simulatedHR = min(active, simulatedHR + max(1, step))
+        if simulatedHR < target {
+            simulatedHR = min(target, simulatedHR + max(1, step))
         } else {
             simulatedHR = max(resting, simulatedHR + step)
         }
@@ -182,107 +158,54 @@ final class AppState {
         currentHR = safeHR
     }
 
-    // MARK: - Generation pipeline
+    // MARK: - Music generation
 
-    private func fetchFragment() async throws -> MusicFragment {
-        guard let sessionId else { throw APIError.invalidURL }
+    func generateNextTrack() async {
+        guard let sessionId, !isGenerating else { return }
+        isGenerating = true
+        errorMessage = nil
 
-        var attempts = 0
-        while true {
-            do {
-                let response = try await api.generateMusic(sessionId: sessionId)
-                return MusicFragment(from: response, baseURL: AppConfig.apiBaseURL)
-            } catch let error as APIError where error.errorDescription?.contains("загружается") == true {
-                attempts += 1
-                if attempts > 12 { throw error }
-                errorMessage = error.localizedDescription
-                try await Task.sleep(for: .seconds(5))
-            }
-        }
-    }
+        do {
+            let response = try await api.generateMusic(sessionId: sessionId)
+            let fragment = MusicFragment(from: response, baseURL: AppConfig.apiBaseURL)
+            let track = CurrentTrack(from: fragment)
 
-    /// Сразу после окончания генерации предыдущего — стартуем следующий
-    private func startGeneratingNext() {
-        guard isSessionActive, generationTask == nil else { return }
+            heartRateZone = response.heartRateZone
+            heartRateZoneLabel = response.heartRateZoneLabel
+            targetBPM = response.bpm
 
-        generationTask = Task {
-            isGenerating = true
-            errorMessage = nil
-            do {
-                let fragment = try await fetchFragment()
-                if !Task.isCancelled {
-                    readyNextFragment = fragment
+            if currentTrack == nil {
+                
+                currentTrack = track
+                audioPlayer.play(track: track) { [weak self] in
+                    Task { @MainActor in
+                        await self?.prefetchIfNeeded()
+                    }
                 }
-            } catch {
-                if !Task.isCancelled {
-                    errorMessage = error.localizedDescription
-                }
+            } else {
+
+                currentTrack = track
+                audioPlayer.appendToQueue(track: track)
             }
+
+        } catch let error as APIError where error.errorDescription?.contains("загружается") == true {
+            errorMessage = error.localizedDescription
+            try? await Task.sleep(for: .seconds(5))
             isGenerating = false
-            generationTask = nil
+            await generateNextTrack()
+            return
+        } catch {
+            errorMessage = error.localizedDescription
         }
-    }
 
-    // MARK: - Playback pipeline
-
-    private func startPlaybackLoop() {
-        playbackTask?.cancel()
-        playbackTask = Task {
-            while !Task.isCancelled, isSessionActive, let fragment = playingFragment {
-                // 1. Играем текущий отрывок
-                await audioPlayer.playAndWait(url: fragment.fragmentURL)
-
-                if Task.isCancelled || !isSessionActive { break }
-
-                // 2. Следующий готов — переход + новый отрывок
-                if let next = readyNextFragment {
-                    readyNextFragment = nil
-
-                    if let transition = next.transitionURL {
-                        await audioPlayer.playAndWait(url: transition)
-                    }
-
-                    playingFragment = next
-                    currentTrack = CurrentTrack(from: next)
-                    applyFragmentMetadata(next)
-                    startGeneratingNext()
-                    continue
-                }
-
-                // 3. Следующий ещё не готов — loop-bridge + повтор текущего
-                if let bridge = fragment.loopBridgeURL {
-                    await audioPlayer.playAndWait(url: bridge)
-                }
-
-                if Task.isCancelled || !isSessionActive { break }
-
-                // Проверяем, не появился ли следующий отрывок за время bridge
-                if let next = readyNextFragment {
-                    readyNextFragment = nil
-                    if let transition = next.transitionURL {
-                        await audioPlayer.playAndWait(url: transition)
-                    }
-                    playingFragment = next
-                    currentTrack = CurrentTrack(from: next)
-                    applyFragmentMetadata(next)
-                    startGeneratingNext()
-                }
-                // иначе цикл повторит тот же fragment
-            }
-        }
-    }
-
-    private func stopPlaybackPipeline() {
-        playbackTask?.cancel()
-        playbackTask = nil
-        generationTask?.cancel()
-        generationTask = nil
-        audioPlayer.stop()
         isGenerating = false
     }
 
-    private func applyFragmentMetadata(_ fragment: MusicFragment) {
-        targetBPM = fragment.bpm
+    private func prefetchIfNeeded() async {
+        guard !isPrefetching else { return }
+        isPrefetching = true
+        await generateNextTrack()
+        isPrefetching = false
     }
 
     private func applyStatus(_ status: SessionStatusResponse) {
