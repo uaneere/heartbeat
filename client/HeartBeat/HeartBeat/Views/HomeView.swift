@@ -108,7 +108,7 @@ struct HomeView: View {
             Button {
                 Task { await appState.stopWorkout() }
             } label: {
-                Text("Завершить тренировку")
+                Text("Завершить генерацию")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.primaryWine)
                     .frame(maxWidth: .infinity)
@@ -125,7 +125,7 @@ struct HomeView: View {
             Button {
                 Task { await appState.startWorkout() }
             } label: {
-                Text(appState.isLoading ? "Запуск..." : "Начать тренировку")
+                Text(appState.isLoading ? "Запуск..." : "Начать генерацию")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)

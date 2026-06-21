@@ -100,10 +100,18 @@ struct APIClient {
     }
 
     private func execute<T: Decodable>(_ request: URLRequest) async throws -> T {
+
+        let method = request.httpMethod ?? "UNKNOWN"
+        let urlString = request.url?.absoluteString ?? "UNKNOWN URL"
+        AppLogger.shared.log("Начат запрос: [\(method)] -> \(urlString)")
+
         let (data, response) = try await Self.urlSession.data(for: request)
         guard let http = response as? HTTPURLResponse else {
+            AppLogger.shared.log("Ошибка: Нет ответа от сервера для \(urlString)")
             throw APIError.httpError(0, "Нет ответа от сервера")
         }
+
+        AppLogger.shared.log("Получен ответ: Код \(http.statusCode) для \(urlString)")
 
         if http.statusCode == 503 {
             throw APIError.modelNotReady
@@ -111,12 +119,14 @@ struct APIClient {
 
         guard (200...299).contains(http.statusCode) else {
             let message = String(data: data, encoding: .utf8) ?? "Неизвестная ошибка"
+            AppLogger.shared.log("Ошибка сервера \(http.statusCode): \(message)")
             throw APIError.httpError(http.statusCode, message)
         }
 
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
+            AppLogger.shared.log("Ошибка декодирования JSON: \(error.localizedDescription)")
             throw APIError.decodingError(error)
         }
     }
