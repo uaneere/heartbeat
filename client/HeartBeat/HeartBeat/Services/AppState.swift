@@ -24,7 +24,10 @@ final class AppState {
     private let api = APIClient()
     private var heartRateTimer: Timer?
     private var simulatedHR: Int = 65
-    private var isPrefetching = false
+
+    private var playingFragment: MusicFragment?
+    private var readyNextFragment: MusicFragment?
+    private var generationTask: Task<Void, Never>?
 
     // MARK: - Profile
 
@@ -52,6 +55,8 @@ final class AppState {
                 try? await api.endSession(sessionId: existingId)
             }
 
+            stopPlaybackPipeline()
+
             let response = try await api.startSession(
                 profile: userProfile.toAPIProfile(),
                 context: sessionSettings.toAPIContext()
@@ -63,7 +68,8 @@ final class AppState {
             simulatedHR = response.currentHr
 
             startHeartRatePolling()
-            await generateNextTrack()
+            configurePlayback()
+            await loadAndPlayFirstFragment()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -74,7 +80,7 @@ final class AppState {
     func stopWorkout() async {
         heartRateTimer?.invalidate()
         heartRateTimer = nil
-        audioPlayer.stop()
+        stopPlaybackPipeline()
 
         if let sessionId {
             try? await api.endSession(sessionId: sessionId)
@@ -83,6 +89,8 @@ final class AppState {
         sessionId = nil
         isSessionActive = false
         currentTrack = nil
+        playingFragment = nil
+        readyNextFragment = nil
     }
 
     func applySessionSettings() async {
@@ -95,7 +103,8 @@ final class AppState {
                 context: sessionSettings.toAPIContext()
             )
             applyStatus(status)
-            await generateNextTrack()
+            readyNextFragment = nil
+            startGeneratingNext()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -135,77 +144,141 @@ final class AppState {
             heartRateZoneLabel = response.heartRateZoneLabel
             targetBPM = response.targetBpm
         } catch {
-            errorMessage = error.localizedDescription
+            // Не перекрываем UI ошибкой пульса, пока идёт долгая генерация музыки
+            if !isGenerating {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
-    /// Симуляция пульса до подключения HealthKit / BLE
     private func simulateHeartRate() {
         let resting = Int(userProfile.restingHr) ?? 65
         let active = Int(userProfile.activeHr) ?? 130
-        let target = active
         let step = Int.random(in: -2...4)
 
-        if simulatedHR < target {
-            simulatedHR = min(target, simulatedHR + max(1, step))
+        if simulatedHR < active {
+            simulatedHR = min(active, simulatedHR + max(1, step))
         } else {
             simulatedHR = max(resting, simulatedHR + step)
         }
-        currentHR = simulatedHR
 
         let safeHR = min(active, max(resting, simulatedHR))
         simulatedHR = safeHR
         currentHR = safeHR
     }
 
-    // MARK: - Music generation
+    // MARK: - Music generation & playback
 
-    func generateNextTrack() async {
-        guard let sessionId, !isGenerating else { return }
-        isGenerating = true
-        errorMessage = nil
-
-        do {
-            let response = try await api.generateMusic(sessionId: sessionId)
-            let fragment = MusicFragment(from: response, baseURL: AppConfig.apiBaseURL)
-            let track = CurrentTrack(from: fragment)
-
-            heartRateZone = response.heartRateZone
-            heartRateZoneLabel = response.heartRateZoneLabel
-            targetBPM = response.bpm
-
-            if currentTrack == nil {
-                
-                currentTrack = track
-                audioPlayer.play(track: track) { [weak self] in
-                    Task { @MainActor in
-                        await self?.prefetchIfNeeded()
-                    }
+    private func configurePlayback() {
+        audioPlayer.configure(
+            onNearEnd: { [weak self] in
+                Task { @MainActor in
+                    self?.handleNearEndOfFragment()
                 }
-            } else {
-
-                currentTrack = track
-                audioPlayer.appendToQueue(track: track)
+            },
+            onFragmentStarted: { [weak self] index in
+                Task { @MainActor in
+                    self?.handleFragmentStarted(index: index)
+                }
             }
+        )
+    }
 
-        } catch let error as APIError where error.errorDescription?.contains("загружается") == true {
-            errorMessage = error.localizedDescription
-            try? await Task.sleep(for: .seconds(5))
-            isGenerating = false
-            await generateNextTrack()
-            return
+    private func loadAndPlayFirstFragment() async {
+        isGenerating = true
+        do {
+            let fragment = try await fetchFragment()
+            playingFragment = fragment
+            currentTrack = CurrentTrack(from: fragment)
+            applyFragmentMetadata(fragment)
+
+            audioPlayer.play(fragment: fragment) { [weak self] in
+                // Следующая генерация только после буферизации первого трека
+                self?.startGeneratingNext()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
-
         isGenerating = false
     }
 
-    private func prefetchIfNeeded() async {
-        guard !isPrefetching else { return }
-        isPrefetching = true
-        await generateNextTrack()
-        isPrefetching = false
+    private func fetchFragment() async throws -> MusicFragment {
+        guard let sessionId else { throw APIError.invalidURL }
+
+        var attempts = 0
+        while true {
+            do {
+                let response = try await api.generateMusic(sessionId: sessionId)
+                return MusicFragment(from: response, baseURL: AppConfig.apiBaseURL)
+            } catch let error as APIError where error.errorDescription?.contains("загружается") == true {
+                attempts += 1
+                if attempts > 12 { throw error }
+                errorMessage = error.localizedDescription
+                try await Task.sleep(for: .seconds(5))
+            }
+        }
+    }
+
+    private func startGeneratingNext() {
+        guard isSessionActive, generationTask == nil else { return }
+
+        generationTask = Task {
+            isGenerating = true
+            errorMessage = nil
+            do {
+                let fragment = try await fetchFragment()
+                if !Task.isCancelled {
+                    readyNextFragment = fragment
+                    audioPlayer.prefetchNext(fragment)
+                }
+            } catch {
+                if !Task.isCancelled {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            isGenerating = false
+            generationTask = nil
+        }
+    }
+
+    private func handleNearEndOfFragment() {
+        guard isSessionActive else { return }
+
+        if let next = readyNextFragment {
+            audioPlayer.prefetchNext(next)
+            return
+        }
+
+        if !audioPlayer.hasNextFragmentQueued, let fragment = playingFragment {
+            audioPlayer.enqueueLoopBridge(for: fragment)
+        }
+    }
+
+    private func handleFragmentStarted(index: Int) {
+        guard isSessionActive else { return }
+
+        if let next = readyNextFragment, next.fragmentIndex == index {
+            playingFragment = next
+            readyNextFragment = nil
+            currentTrack = CurrentTrack(from: next)
+            applyFragmentMetadata(next)
+            startGeneratingNext()
+        }
+
+        if let playbackError = audioPlayer.playbackError {
+            errorMessage = playbackError
+        }
+    }
+
+    private func stopPlaybackPipeline() {
+        generationTask?.cancel()
+        generationTask = nil
+        audioPlayer.stop()
+        isGenerating = false
+    }
+
+    private func applyFragmentMetadata(_ fragment: MusicFragment) {
+        targetBPM = fragment.bpm
     }
 
     private func applyStatus(_ status: SessionStatusResponse) {

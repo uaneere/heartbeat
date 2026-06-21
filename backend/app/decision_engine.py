@@ -7,6 +7,37 @@ from typing import List, Optional
 
 from app.models import ActivityType, GoalType, TempoPreference, EnergyLevel
 
+# Синонимы жанров для сопоставления UI-предпочтений с жанрами активности
+_GENRE_ALIASES: dict[str, set[str]] = {
+    "lofi": {"lofi", "lo-fi", "chill", "downtempo", "chill electronic"},
+    "electronic": {
+        "electronic", "edm", "house", "techno", "trance", "synthwave",
+        "chiptune", "progressive house", "hardstyle", "drum and bass",
+    },
+    "rock": {"rock", "metal"},
+    "classical": {"classical", "piano", "acoustic"},
+    "jazz": {"jazz"},
+    "pop": {"pop"},
+    "phonk": {"phonk", "drift"},
+    "ambient": {"ambient", "meditation", "nature sounds", "white noise"},
+}
+
+# Рекомендуемый целевой BPM по виду активности (без учёта текущего пульса)
+_ACTIVITY_TARGET_BPM: dict[ActivityType, int] = {
+    ActivityType.SLEEP: 60,
+    ActivityType.MEDITATION: 70,
+    ActivityType.STUDYING: 85,
+    ActivityType.WALKING: 105,
+    ActivityType.YOGA: 95,
+    ActivityType.CYCLING: 120,
+    ActivityType.GYM: 125,
+    ActivityType.RUNNING: 130,
+    ActivityType.GAMING: 110,
+}
+
+# Максимальный шаг изменения BPM между отрывками (по умолчанию)
+_DEFAULT_BPM_STEP = 10
+
 
 def calculate_max_heart_rate(age: int) -> int:
     """Максимальный пульс по возрасту (формула Tanaka)"""
@@ -48,7 +79,71 @@ def get_heart_rate_zone_label(zone: int) -> str:
     return labels.get(zone, "Кардио")
 
 
-def build_track_title(genre: str, mood: str, bpm: int) -> str:
+def _normalize_genre(name: str) -> str:
+    return name.lower().strip().replace("-", "")
+
+
+def _genres_match(activity_genre: str, preference: str) -> bool:
+    """Проверяет, подходит ли жанр из списка активности к предпочтению пользователя."""
+    a = _normalize_genre(activity_genre)
+    p = _normalize_genre(preference)
+    if p in a or a in p:
+        return True
+    for aliases in _GENRE_ALIASES.values():
+        norm_aliases = {_normalize_genre(x) for x in aliases}
+        if p in norm_aliases and a in norm_aliases:
+            return True
+    return False
+
+
+def _apply_conditions_bpm_cap(bpm: int, conditions: List[str]) -> int:
+    """Ограничения BPM при хронических заболеваниях."""
+    capped = bpm
+    condition_set = {c.lower() for c in conditions}
+
+    if "hypertension" in condition_set:
+        capped = min(capped, 120)
+    if "arrhythmia" in condition_set:
+        capped = min(capped, 110)
+    if "ischemic_heart_disease" in condition_set:
+        capped = min(capped, 115)
+    if "asthma" in condition_set:
+        capped = min(capped, 125)
+    if "diabetes" in condition_set:
+        # Диабет: избегаем экстремально низкого темпа при нагрузке
+        capped = max(capped, 70)
+
+    return capped
+
+
+def _bpm_step_for_conditions(conditions: List[str]) -> int:
+    """Меньший шаг BPM при сердечно-сосудистых ограничениях."""
+    condition_set = {c.lower() for c in conditions}
+    if condition_set & {"arrhythmia", "ischemic_heart_disease", "hypertension"}:
+        return 5
+    return _DEFAULT_BPM_STEP
+
+
+def calculate_gradual_bpm(
+    target_bpm: int,
+    last_bpm: Optional[int],
+    conditions: Optional[List[str]] = None,
+) -> int:
+    """
+    Постепенный переход BPM между отрывками.
+    Если разница с целевым велика — меняем не более чем на один шаг за трек.
+    """
+    conditions = conditions or []
+    target_bpm = _apply_conditions_bpm_cap(target_bpm, conditions)
+
+    if last_bpm is None:
+        return target_bpm
+
+    step = _bpm_step_for_conditions(conditions)
+    diff = target_bpm - last_bpm
+    if abs(diff) <= step:
+        return target_bpm
+    return last_bpm + step if diff > 0 else last_bpm - step
     """Название трека для отображения в клиенте"""
     mood_titles = {
         "calming": "Спокойствие",

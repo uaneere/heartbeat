@@ -19,6 +19,13 @@ enum APIError: LocalizedError {
 struct APIClient {
     let baseURL: String
 
+    private static let urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300
+        config.timeoutIntervalForResource = 600
+        return URLSession(configuration: config)
+    }()
+
     init(baseURL: String = AppConfig.apiBaseURL) {
         self.baseURL = baseURL
     }
@@ -93,7 +100,7 @@ struct APIClient {
     }
 
     private func execute<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await Self.urlSession.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.httpError(0, "Нет ответа от сервера")
         }
