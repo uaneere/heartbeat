@@ -202,8 +202,14 @@ struct GenerateResponse: Codable {
     let durationSeconds: Int
     let tick: Int
     let fragmentFile: String
+    let fragmentIndex: Int
     let heartRateZone: Int
     let heartRateZoneLabel: String
+    let transitionAudioUrl: String?
+    let transitionDurationSeconds: Int
+    let loopBridgeUrl: String?
+    let loopBridgeDurationSeconds: Int
+    let chunkDurationSec: Double
 
     enum CodingKeys: String, CodingKey {
         case success
@@ -213,8 +219,14 @@ struct GenerateResponse: Codable {
         case durationSeconds = "duration_seconds"
         case tick
         case fragmentFile = "fragment_file"
+        case fragmentIndex = "fragment_index"
         case heartRateZone = "heart_rate_zone"
         case heartRateZoneLabel = "heart_rate_zone_label"
+        case transitionAudioUrl = "transition_audio_url"
+        case transitionDurationSeconds = "transition_duration_seconds"
+        case loopBridgeUrl = "loop_bridge_url"
+        case loopBridgeDurationSeconds = "loop_bridge_duration_seconds"
+        case chunkDurationSec = "chunk_duration_sec"
     }
 }
 

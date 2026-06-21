@@ -103,17 +103,27 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     """Ответ с сгенерированной музыкой"""
     success: bool
-    audio_url: str = Field(..., description="URL для скачивания аудио")
+    audio_url: str = Field(..., description="URL сырого отрывка для воспроизведения")
     bpm: int = Field(..., description="Target BPM")
     genre: str = Field(..., description="Жанр")
     energy: EnergyLevel = Field(..., description="Энергия трека")
     mood: str = Field(..., description="Настроение")
     track_title: str = Field(..., description="Название трека для UI")
-    duration_seconds: int = Field(..., description="Длительность в секундах")
+    duration_seconds: int = Field(..., description="Длительность сырого отрывка в секундах")
     tick: int = Field(..., description="Номер тика")
     fragment_file: str = Field(..., description="Имя файла")
+    fragment_index: int = Field(..., description="Порядковый номер отрывка в сессии")
     heart_rate_zone: int = Field(..., description="Зона пульса 1-5")
     heart_rate_zone_label: str = Field(..., description="Название зоны пульса")
+    transition_audio_url: Optional[str] = Field(
+        None, description="Переход с предыдущего отрывка (crossfade)"
+    )
+    transition_duration_seconds: int = Field(0, description="Длительность перехода")
+    loop_bridge_url: Optional[str] = Field(
+        None, description="Плавный переход конец→начало для зацикливания"
+    )
+    loop_bridge_duration_seconds: int = Field(0, description="Длительность loop-bridge")
+    chunk_duration_sec: float = Field(..., description="Настройка длины отрывка на сервере")
 
 
 class SessionStatusResponse(BaseModel):

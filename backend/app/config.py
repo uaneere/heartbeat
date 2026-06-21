@@ -18,6 +18,9 @@ if DEFAULT_MODEL_KEY not in MODEL_PRESETS:
 # Длительность фрагмента в секундах
 CHUNK_DURATION_SEC = float(os.getenv("MUSICGEN_DURATION", "30"))
 
+# Длительность crossfade между отрывками (сек)
+CROSSFADE_SEC = float(os.getenv("MUSICGEN_CROSSFADE", "2.0"))
+
 # Очищать CUDA кэш после каждой генерации
 CLEAR_CUDA_CACHE_EACH_GEN = os.getenv("MUSICGEN_CLEAR_CACHE", "1") == "1"
 

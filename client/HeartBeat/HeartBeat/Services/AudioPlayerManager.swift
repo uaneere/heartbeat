@@ -5,39 +5,34 @@ import Foundation
 @MainActor
 final class AudioPlayerManager: NSObject {
     private var player: AVPlayer?
+    private var endContinuation: CheckedContinuation<Void, Never>?
     private var timeObserver: Any?
-    private var onNearEnd: (() -> Void)?
-    private var didTriggerPrefetch = false
 
     var isPlaying = false
 
-    func play(track: CurrentTrack, onNearEnd: @escaping () -> Void) {
-        stop()
-        self.onNearEnd = onNearEnd
-        didTriggerPrefetch = false
+    /// Воспроизвести URL и дождаться окончания
+    func playAndWait(url: URL) async {
+        stopInternal(keepSession: false)
 
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
 
-        let item = AVPlayerItem(url: track.audioURL)
+        let item = AVPlayerItem(url: url)
         player = AVPlayer(playerItem: item)
-        player?.play()
-        isPlaying = true
 
-        let interval = CMTime(seconds: 1, preferredTimescale: 1)
-        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self else { return }
-            Task { @MainActor in
-                self.checkPrefetch(currentTime: time.seconds, duration: Double(track.durationSeconds))
-            }
+        await withCheckedContinuation { continuation in
+            endContinuation = continuation
+
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(itemDidFinish),
+                name: .AVPlayerItemDidPlayToEndTime,
+                object: item
+            )
+
+            player?.play()
+            isPlaying = true
         }
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(playerDidFinish),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: item
-        )
     }
 
     func togglePlayback() {
@@ -52,6 +47,10 @@ final class AudioPlayerManager: NSObject {
     }
 
     func stop() {
+        stopInternal(keepSession: false)
+    }
+
+    private func stopInternal(keepSession: Bool) {
         if let timeObserver, let player {
             player.removeTimeObserver(timeObserver)
         }
@@ -59,21 +58,22 @@ final class AudioPlayerManager: NSObject {
         player?.pause()
         player = nil
         isPlaying = false
-        didTriggerPrefetch = false
         NotificationCenter.default.removeObserver(self)
-    }
 
-    @objc private func playerDidFinish() {
-        isPlaying = false
-        onNearEnd?()
-    }
-
-    private func checkPrefetch(currentTime: Double, duration: Double) {
-        guard !didTriggerPrefetch else { return }
-        let remaining = duration - currentTime
-        if remaining <= AppConfig.prefetchBeforeEnd && remaining > 0 {
-            didTriggerPrefetch = true
-            onNearEnd?()
+        if let endContinuation {
+            self.endContinuation = nil
+            endContinuation.resume()
         }
+
+        if !keepSession {
+            try? AVAudioSession.sharedInstance().setActive(false)
+        }
+    }
+
+    @objc private func itemDidFinish() {
+        isPlaying = false
+        NotificationCenter.default.removeObserver(self)
+        endContinuation?.resume()
+        endContinuation = nil
     }
 }
