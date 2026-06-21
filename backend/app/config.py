@@ -32,3 +32,15 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # Папка для аудиофайлов
 AUDIO_DIR = "data"
+
+# Формат отдачи клиенту: mp3 (рекомендуется) или wav
+AUDIO_SERVE_FORMAT = os.getenv("AUDIO_SERVE_FORMAT", "mp3").strip().lower()
+
+# Путь для статической раздачи треков
+STATIC_TRACKS_PATH = "/static/tracks"
+
+# Качество MP3 для ffmpeg (-qscale:a, 2 ≈ ~190 kbps VBR)
+MP3_QUALITY = os.getenv("MP3_QUALITY", "2")
+
+# Удалять WAV после конвертации (только для bridge-файлов; сырые треки сохраняются)
+DELETE_BRIDGE_WAV_AFTER_ENCODE = os.getenv("DELETE_BRIDGE_WAV_AFTER_ENCODE", "1") == "1"

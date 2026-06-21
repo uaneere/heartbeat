@@ -31,8 +31,9 @@ from app.audio_utils import (
     create_transition_bridge,
     create_loop_bridge,
     read_mono,
+    prepare_for_serving,
 )
-from app.config import CHUNK_DURATION_SEC, CROSSFADE_SEC, AUDIO_DIR
+from app.config import CHUNK_DURATION_SEC, CROSSFADE_SEC, AUDIO_DIR, DELETE_BRIDGE_WAV_AFTER_ENCODE
 
 router = APIRouter(prefix="/api/v1", tags=["generate"])
 
@@ -127,17 +128,26 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         tick=session.tick,
     )
 
-    filename = get_filename_from_path(audio_path)
+    served_audio = prepare_for_serving(audio_path, delete_source=False)
+    filename = get_filename_from_path(served_audio)
     zone = get_heart_rate_zone(intensity)
 
     transition_url = None
     transition_dur = 0
     if transition_path:
-        transition_url = get_audio_url(get_filename_from_path(transition_path))
         transition_dur = _bridge_duration(transition_path)
+        served_transition = prepare_for_serving(
+            transition_path,
+            delete_source=DELETE_BRIDGE_WAV_AFTER_ENCODE,
+        )
+        transition_url = get_audio_url(get_filename_from_path(served_transition))
 
-    loop_url = get_audio_url(get_filename_from_path(loop_bridge_path))
     loop_dur = _bridge_duration(loop_bridge_path)
+    served_loop = prepare_for_serving(
+        loop_bridge_path,
+        delete_source=DELETE_BRIDGE_WAV_AFTER_ENCODE,
+    )
+    loop_url = get_audio_url(get_filename_from_path(served_loop))
 
     return GenerateResponse(
         success=True,
@@ -163,7 +173,7 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
 
 @router.get("/audio/{filename}")
 async def serve_audio(filename: str):
-    """Отдать аудиофайл для воспроизведения"""
+    """Fallback: отдать аудиофайл (основной путь — /static/tracks/...)"""
     path = os.path.join(AUDIO_DIR, filename)
 
     real_path = os.path.realpath(path)
@@ -174,8 +184,10 @@ async def serve_audio(filename: str):
     if not os.path.exists(real_path):
         raise HTTPException(status_code=404, detail="Audio file not found")
 
+    media_type = "audio/mpeg" if filename.lower().endswith(".mp3") else "audio/wav"
+
     return FileResponse(
         path=real_path,
-        media_type="audio/wav",
+        media_type=media_type,
         filename=filename,
     )

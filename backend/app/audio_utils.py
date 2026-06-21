@@ -1,14 +1,21 @@
 """
-Утилиты для работы с аудио (crossfade, чтение/запись)
+Утилиты для работы с аудио (crossfade, чтение/запись, конвертация для стриминга)
 """
 
 import logging
 import os
+import subprocess
 import numpy as np
 import soundfile as sf
 from datetime import datetime
 
-from app.config import AUDIO_DIR
+from app.config import (
+    AUDIO_DIR,
+    AUDIO_SERVE_FORMAT,
+    DELETE_BRIDGE_WAV_AFTER_ENCODE,
+    MP3_QUALITY,
+    STATIC_TRACKS_PATH,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +107,54 @@ def crossfade_files(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
     return write_audio(merged, sr_a, "crossfade")
 
 
+def convert_wav_to_mp3(wav_path: str, *, delete_source: bool = False) -> str:
+    """Конвертирует WAV в MP3 через ffmpeg для потоковой отдачи клиенту."""
+    mp3_path = os.path.splitext(wav_path)[0] + ".mp3"
+    if os.path.exists(mp3_path):
+        return mp3_path
+
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            wav_path,
+            "-codec:a",
+            "libmp3lame",
+            "-qscale:a",
+            str(MP3_QUALITY),
+            mp3_path,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        logger.error("ffmpeg failed for %s: %s", wav_path, result.stderr)
+        raise RuntimeError(f"MP3 conversion failed: {result.stderr.strip()}")
+
+    if delete_source:
+        try:
+            os.remove(wav_path)
+        except OSError as exc:
+            logger.warning("Could not delete source WAV %s: %s", wav_path, exc)
+
+    return mp3_path
+
+
+def prepare_for_serving(wav_path: str, *, delete_source: bool = False) -> str:
+    """
+    Готовит файл к отдаче клиенту.
+    WAV остаётся для внутренней обработки (crossfade); клиент получает MP3 по статическому URL.
+    """
+    if AUDIO_SERVE_FORMAT == "wav":
+        return wav_path
+    return convert_wav_to_mp3(wav_path, delete_source=delete_source)
+
+
 def get_audio_url(filename: str) -> str:
-    """Формирует URL для доступа к аудиофайлу"""
-    return f"/api/v1/audio/{filename}"
+    """Формирует статический URL для потокового воспроизведения на клиенте."""
+    return f"{STATIC_TRACKS_PATH}/{filename}"
 
 
 def get_filename_from_path(path: str) -> str:

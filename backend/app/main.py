@@ -3,11 +3,13 @@ FastAPI приложение
 """
 
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.config import CORS_ORIGINS, PRELOAD_ON_STARTUP
+from app.config import CORS_ORIGINS, PRELOAD_ON_STARTUP, AUDIO_DIR, STATIC_TRACKS_PATH
 from app.routes import sessions, generate, health
 
 # Настройка логирования
@@ -53,6 +55,10 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(sessions.router)
 app.include_router(generate.router)
+
+# Статическая раздача сгенерированных треков для потокового AVPlayer
+os.makedirs(AUDIO_DIR, exist_ok=True)
+app.mount(STATIC_TRACKS_PATH, StaticFiles(directory=AUDIO_DIR), name="tracks")
 
 
 @app.get("/")
