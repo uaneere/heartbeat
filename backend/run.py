@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Запуск API сервера
-"""
+"""Запуск API сервера"""
 
 import uvicorn
 import argparse

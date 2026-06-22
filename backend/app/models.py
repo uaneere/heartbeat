@@ -1,6 +1,4 @@
-"""
-Pydantic модели - КОНТРАКТ с мобильным приложением
-"""
+"""Pydantic модели - КОНТРАКТ с мобильным приложением"""
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -18,7 +16,6 @@ class ActivityType(str, Enum):
     YOGA = "yoga"
     GAMING = "gaming"
 
-
 class GoalType(str, Enum):
     """Цели тренировки"""
     FAT_BURNING = "fat_burning"
@@ -29,13 +26,11 @@ class GoalType(str, Enum):
     WARMUP = "warmup"
     COOLDOWN = "cooldown"
 
-
 class TempoPreference(str, Enum):
     """Предпочтение темпа"""
     SLOW = "slow"
     MEDIUM = "medium"
     FAST = "fast"
-
 
 class EnergyLevel(str, Enum):
     """Уровень энергии трека"""
@@ -43,15 +38,15 @@ class EnergyLevel(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
 
-
 class Profile(BaseModel):
-    """Профиль пользователя"""
-    age: int = Field(..., ge=5, le=100, description="Возраст")
+    """Профиль пользователя - статичные параметры сессии."""
+    age: int = Field(..., ge=5, le=100, description="Возраст (макс. пульс)")
     resting_hr: int = Field(..., ge=40, le=120, description="Пульс в покое")
-    avg_active_hr: Optional[int] = Field(None, ge=80, le=220, description="Средний активный пульс")
     preferred_genres: List[str] = Field(default=[], description="Предпочитаемые жанры")
-    conditions: List[str] = Field(default=[], description="Медицинские показания")
-
+    conditions: List[str] = Field(
+        default=[],
+        description="Заболевания: ограничивают BPM и влияют на настроение трека",
+    )
 
 class SessionContext(BaseModel):
     """Контекст сессии"""
@@ -59,14 +54,11 @@ class SessionContext(BaseModel):
     goal: GoalType = Field(default=GoalType.GENERAL, description="Цель")
     tempo_preference: TempoPreference = Field(default=TempoPreference.MEDIUM, description="Предпочтение темпа")
 
-
-# === REQUEST / RESPONSE модели ===
-
+"""REQUEST / RESPONSE модели"""
 class StartSessionRequest(BaseModel):
     """Запрос на начало сессии"""
     profile: Profile
     session: SessionContext
-
 
 class StartSessionResponse(BaseModel):
     """Ответ на начало сессии"""
@@ -75,13 +67,9 @@ class StartSessionResponse(BaseModel):
     tick: int
     message: str = "Session started successfully"
 
-
 class HeartRateUpdate(BaseModel):
-    """Обновление пульса"""
+    """Обновление пульса с часов (HealthKit)."""
     current_hr: int = Field(..., ge=30, le=220, description="Текущий пульс")
-    movement_intensity: float = Field(0.5, ge=0.0, le=1.0, description="Интенсивность движения")
-    stress_level: float = Field(0.3, ge=0.0, le=1.0, description="Уровень стресса")
-
 
 class HeartRateResponse(BaseModel):
     """Ответ на обновление пульса"""
@@ -93,12 +81,10 @@ class HeartRateResponse(BaseModel):
     target_bpm: int
     message: str = "OK"
 
-
 class GenerateRequest(BaseModel):
     """Запрос на генерацию музыки"""
     force_regenerate: bool = Field(False, description="Принудительно перегенерировать")
     seed: Optional[int] = Field(None, description="Seed для воспроизводимости")
-
 
 class GenerateResponse(BaseModel):
     """Ответ с сгенерированной музыкой"""
@@ -125,7 +111,6 @@ class GenerateResponse(BaseModel):
     loop_bridge_duration_seconds: int = Field(0, description="Длительность loop-bridge")
     chunk_duration_sec: float = Field(..., description="Настройка длины отрывка на сервере")
 
-
 class SessionStatusResponse(BaseModel):
     """Статус сессии"""
     session_id: UUID
@@ -141,11 +126,9 @@ class SessionStatusResponse(BaseModel):
     last_bpm: Optional[int] = None
     last_genre: Optional[str] = None
 
-
 class UpdateSessionContextRequest(BaseModel):
     """Обновление настроек активной сессии"""
     session: SessionContext
-
 
 class HealthResponse(BaseModel):
     """Health check ответ"""

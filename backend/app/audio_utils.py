@@ -1,6 +1,4 @@
-"""
-Утилиты для работы с аудио (crossfade, чтение/запись, конвертация для стриминга)
-"""
+"""Утилиты для работы с аудио (crossfade, чтение/запись, конвертация для стриминга)"""
 
 import logging
 import os
@@ -19,14 +17,12 @@ from app.config import (
 
 logger = logging.getLogger(__name__)
 
-
 def read_mono(path: str) -> tuple[np.ndarray, int]:
     """Читает WAV в моно"""
     samples, sample_rate = sf.read(path, dtype="float32")
     if samples.ndim > 1:
         samples = samples.mean(axis=1)
     return samples, sample_rate
-
 
 def write_audio(samples: np.ndarray, sample_rate: int, prefix: str = "audio") -> str:
     """Сохраняет аудио в файл"""
@@ -36,7 +32,6 @@ def write_audio(samples: np.ndarray, sample_rate: int, prefix: str = "audio") ->
     sf.write(path, samples, sample_rate)
     return path
 
-
 def _resample_if_needed(audio: np.ndarray, src_sr: int, target_sr: int) -> np.ndarray:
     if src_sr == target_sr:
         return audio
@@ -44,7 +39,6 @@ def _resample_if_needed(audio: np.ndarray, src_sr: int, target_sr: int) -> np.nd
     logger.warning("Resampling from %s to %s", src_sr, target_sr)
     new_len = int(len(audio) * target_sr / src_sr)
     return signal.resample(audio, new_len)
-
 
 def _equal_power_crossfade(tail: np.ndarray, head: np.ndarray) -> np.ndarray:
     fade_samples = min(len(tail), len(head))
@@ -57,11 +51,10 @@ def _equal_power_crossfade(tail: np.ndarray, head: np.ndarray) -> np.ndarray:
     fade_in = np.sin(x) ** 2
     return tail * fade_out + head * fade_in
 
-
 def create_transition_bridge(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
     """
-    Создаёт короткий файл-переход: хвост file_a плавно переходит в начало file_b.
-  Используется при смене отрывков в плеере.
+    Создаёт короткий файл-переход: хвост file_a плавно переходит в начало file_b
+    Используется при смене отрывков в плеере
     """
     audio_a, sr_a = read_mono(file_a)
     audio_b, sr_b = read_mono(file_b)
@@ -77,8 +70,8 @@ def create_transition_bridge(file_a: str, file_b: str, fade_seconds: float = 2.0
 
 def create_loop_bridge(file_path: str, fade_seconds: float = 2.0) -> str:
     """
-    Создаёт плавный переход конец→начало одного отрывка.
-    Используется, когда следующий отрывок ещё не готов.
+    Создаёт плавный переход конец→начало одного отрывка
+    Используется, когда следующий отрывок ещё не готов
     """
     audio, sr = read_mono(file_path)
     fade_samples = min(int(fade_seconds * sr), len(audio) // 2)
@@ -88,9 +81,8 @@ def create_loop_bridge(file_path: str, fade_seconds: float = 2.0) -> str:
     bridge = _equal_power_crossfade(audio[-fade_samples:], audio[:fade_samples])
     return write_audio(bridge, sr, "loop_bridge")
 
-
 def crossfade_files(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
-    """Склеивает два файла с crossfade (полный merge, для офлайн-склейки)."""
+    """Склеивает два файла с crossfade (полный merge, для офлайн-склейки)"""
     audio_a, sr_a = read_mono(file_a)
     audio_b, sr_b = read_mono(file_b)
     audio_b = _resample_if_needed(audio_b, sr_b, sr_a)
@@ -106,9 +98,8 @@ def crossfade_files(file_a: str, file_b: str, fade_seconds: float = 2.0) -> str:
 
     return write_audio(merged, sr_a, "crossfade")
 
-
 def convert_wav_to_mp3(wav_path: str, *, delete_source: bool = False) -> str:
-    """Конвертирует WAV в MP3 через ffmpeg для потоковой отдачи клиенту."""
+    """Конвертирует WAV в MP3 через ffmpeg для потоковой отдачи клиенту"""
     mp3_path = os.path.splitext(wav_path)[0] + ".mp3"
     if os.path.exists(mp3_path):
         return mp3_path
@@ -141,21 +132,18 @@ def convert_wav_to_mp3(wav_path: str, *, delete_source: bool = False) -> str:
 
     return mp3_path
 
-
 def prepare_for_serving(wav_path: str, *, delete_source: bool = False) -> str:
     """
-    Готовит файл к отдаче клиенту.
-    WAV остаётся для внутренней обработки (crossfade); клиент получает MP3 по статическому URL.
+    Готовит файл к отдаче клиенту
+    WAV остаётся для внутренней обработки (crossfade); клиент получает MP3 по статическому URL
     """
     if AUDIO_SERVE_FORMAT == "wav":
         return wav_path
     return convert_wav_to_mp3(wav_path, delete_source=delete_source)
 
-
 def get_audio_url(filename: str) -> str:
-    """Формирует статический URL для потокового воспроизведения на клиенте."""
+    """Формирует статический URL для потокового воспроизведения на клиенте"""
     return f"{STATIC_TRACKS_PATH}/{filename}"
-
 
 def get_filename_from_path(path: str) -> str:
     """Извлекает имя файла из пути"""

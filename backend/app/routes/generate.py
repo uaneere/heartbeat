@@ -1,6 +1,4 @@
-"""
-Эндпоинты генерации музыки
-"""
+"""Эндпоинты генерации музыки"""
 
 import asyncio
 import logging
@@ -41,11 +39,9 @@ from app.config import CHUNK_DURATION_SEC, CROSSFADE_SEC, AUDIO_DIR, DELETE_BRID
 router = APIRouter(prefix="/api/v1", tags=["generate"])
 logger = logging.getLogger(__name__)
 
-
 def _bridge_duration(path: str) -> int:
     samples, sr = read_mono(path)
     return max(1, int(len(samples) / sr))
-
 
 def _generate_fragment_sync(
     *,
@@ -62,9 +58,9 @@ def _generate_fragment_sync(
     intensity: float,
 ) -> GenerateResponse:
     """
-    Тяжёлая синхронная работа: MusicGen + crossfade + ffmpeg.
+    Тяжёлая синхронная работа: MusicGen + crossfade + ffmpeg
     Выполняется в thread pool, чтобы не блокировать event loop
-    (иначе AVPlayer и heartrate зависают на время генерации).
+    (иначе AVPlayer и heartrate зависают на время генерации)
     """
     audio_path = generate_audio(
         prompt=prompt,
@@ -140,16 +136,15 @@ def _generate_fragment_sync(
         chunk_duration_sec=CHUNK_DURATION_SEC,
     )
 
-
 @router.post("/session/{session_id}/generate", response_model=GenerateResponse)
 async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRequest()):
     """
-    Сгенерировать музыкальный отрывок на основе текущего пульса.
+    Сгенерировать музыкальный отрывок на основе текущего пульса
 
     Пайплайн:
-    1. Первый отрывок — сырой WAV (воспроизведение после полной генерации).
-    2. Следующие отрывки — сырой WAV + transition (crossfade с предыдущим) + loop_bridge.
-    3. loop_bridge — плавный переход конец→начало, если следующий отрывок ещё не готов.
+    1. Первый отрывок — сырой WAV (воспроизведение после полной генерации)
+    2. Следующие отрывки — сырой WAV + transition (crossfade с предыдущим) + loop_bridge
+    3. loop_bridge — плавный переход конец→начало, если следующий отрывок ещё не готов
     """
     session = get_session(session_id)
     if not session:
@@ -184,11 +179,12 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
         activity=session.context.activity_type,
         preferred_genres=session.profile.preferred_genres,
         intensity=intensity,
+        last_genre=session.last_genre,
+        fragment_index=session.fragment_index,
     )
 
     energy = select_energy(track_bpm)
-    is_stress = session.stress_level > 0.7
-    mood = select_mood(intensity, is_stress, conditions=session.profile.conditions)
+    mood = select_mood(intensity, conditions=session.profile.conditions)
 
     prompt = build_prompt(
         bpm=track_bpm,
@@ -217,7 +213,6 @@ async def generate_music(session_id: UUID, request: GenerateRequest = GenerateRe
     except Exception as e:
         logger.exception("Generation failed")
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
-
 
 @router.get("/audio/{filename}")
 async def serve_audio(filename: str):

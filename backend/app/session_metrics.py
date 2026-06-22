@@ -1,6 +1,4 @@
-"""
-Расчёт метрик сессии для ответов API
-"""
+"""Расчёт метрик сессии для ответов API"""
 
 from app.decision_engine import (
     calculate_max_heart_rate,
@@ -10,7 +8,6 @@ from app.decision_engine import (
     get_heart_rate_zone_label,
 )
 from app.session_store import SessionState
-
 
 def compute_session_metrics(session: SessionState) -> dict:
     max_hr = calculate_max_heart_rate(session.profile.age)

@@ -1,6 +1,4 @@
-"""
-Эндпоинты управления сессиями
-"""
+"""Эндпоинты управления сессиями"""
 
 from uuid import UUID
 from fastapi import APIRouter, HTTPException
@@ -18,14 +16,13 @@ from app.session_metrics import compute_session_metrics
 
 router = APIRouter(prefix="/api/v1", tags=["sessions"])
 
-
 @router.post("/session/start", response_model=StartSessionResponse)
 async def start_session(req: StartSessionRequest):
     """
     Начать новую сессию тренировки
 
-    Создает сессию с профилем пользователя и контекстом активности.
-    Возвращает session_id для дальнейших запросов.
+    Создает сессию с профилем пользователя и контекстом активности
+    Возвращает session_id для дальнейших запросов
     """
     initial_hr = req.profile.resting_hr
     session = create_session(req.profile, req.session, initial_hr)
@@ -37,22 +34,19 @@ async def start_session(req: StartSessionRequest):
         message="Session started successfully",
     )
 
-
 @router.post("/session/{session_id}/heartrate", response_model=HeartRateResponse)
 async def update_heartrate(session_id: UUID, data: HeartRateUpdate):
     """
-    Обновить пульс и параметры активности
+    Обновить пульс с часов
 
-    Мобильное приложение вызывает этот эндпоинт каждые 2-3 секунды
-    с текущим пульсом пользователя.
+    Клиент отправляет только current_hr из HealthKit
+    Зона пульса и целевой BPM пересчитываются на сервере
     """
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session.current_hr = data.current_hr
-    session.movement_intensity = data.movement_intensity
-    session.stress_level = data.stress_level
     session.tick += 1
 
     metrics = compute_session_metrics(session)
@@ -66,7 +60,6 @@ async def update_heartrate(session_id: UUID, data: HeartRateUpdate):
         target_bpm=metrics["target_bpm"],
         message="OK",
     )
-
 
 @router.patch("/session/{session_id}/context", response_model=SessionStatusResponse)
 async def update_session_context(session_id: UUID, req: UpdateSessionContextRequest):
@@ -93,7 +86,6 @@ async def update_session_context(session_id: UUID, req: UpdateSessionContextRequ
         last_genre=session.last_genre,
     )
 
-
 @router.get("/session/{session_id}/status", response_model=SessionStatusResponse)
 async def get_session_status(session_id: UUID):
     """Получить статус сессии"""
@@ -118,13 +110,11 @@ async def get_session_status(session_id: UUID):
         last_genre=session.last_genre,
     )
 
-
 @router.get("/sessions")
 async def list_sessions():
     """Список всех активных сессий (для отладки)"""
     from app.session_store import get_active_sessions
     return {"sessions": get_active_sessions()}
-
 
 @router.delete("/session/{session_id}")
 async def end_session(session_id: UUID):

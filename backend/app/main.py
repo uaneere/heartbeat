@@ -1,6 +1,4 @@
-"""
-FastAPI приложение
-"""
+"""FastAPI приложение"""
 
 import logging
 import os
@@ -12,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import CORS_ORIGINS, PRELOAD_ON_STARTUP, AUDIO_DIR, STATIC_TRACKS_PATH
 from app.routes import sessions, generate, health
 
-# Настройка логирования
+"""Настройка логирования"""
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -20,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Lifespan для предзагрузки модели
+"""Lifespan для предзагрузки модели"""
 async def lifespan(app: FastAPI):
     """Lifecycle manager"""
     if PRELOAD_ON_STARTUP:
@@ -33,8 +31,7 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to preload model: {e}")
     yield
 
-
-# Создаем приложение
+"""Создание приложения"""
 app = FastAPI(
     title="Heartbeat Music Generator API",
     description="API for generating music based on heart rate and activity",
@@ -42,7 +39,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+"""CORS middleware"""
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -51,15 +48,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Регистрируем роутеры
+"""Регистрация роутеров"""
 app.include_router(health.router)
 app.include_router(sessions.router)
 app.include_router(generate.router)
 
-# Статическая раздача сгенерированных треков для потокового AVPlayer
+"""Статическая раздача сгенерированных треков для потокового AVPlayer"""
 os.makedirs(AUDIO_DIR, exist_ok=True)
 app.mount(STATIC_TRACKS_PATH, StaticFiles(directory=AUDIO_DIR), name="tracks")
-
 
 @app.get("/")
 async def root():

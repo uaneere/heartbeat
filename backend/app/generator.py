@@ -1,6 +1,4 @@
-"""
-MusicGen обертка для генерации аудио
-"""
+"""MusicGen обертка для генерации аудио"""
 
 import logging
 import os
@@ -24,12 +22,10 @@ _ACTIVE_MODEL_KEY: str | None = None
 _MODEL_READY = False
 _GEN_LOCK = threading.Lock()
 
-
 def _clear_cuda_cache() -> None:
     """Очистка CUDA кэша"""
     if CLEAR_CUDA_CACHE_EACH_GEN and torch.cuda.is_available():
         torch.cuda.empty_cache()
-
 
 def _configure_generation(model, duration: float) -> None:
     """Настройка параметров генерации"""
@@ -39,7 +35,6 @@ def _configure_generation(model, duration: float) -> None:
         top_k=250,
         cfg_coef=3.0,
     )
-
 
 def get_model(model_key: str | None = None, *, force_reload: bool = False):
     """Загрузка модели MusicGen"""
@@ -66,17 +61,14 @@ def get_model(model_key: str | None = None, *, force_reload: bool = False):
     logger.info("MusicGen ready: %s", key)
     return _MODEL
 
-
 def preload_model() -> None:
     """Предзагрузка модели при старте"""
     with _GEN_LOCK:
         get_model()
 
-
 def is_model_ready() -> bool:
     """Проверка готовности модели"""
     return _MODEL_READY and _MODEL is not None
-
 
 def get_active_model_info() -> dict:
     """Информация о текущей модели"""
@@ -85,7 +77,6 @@ def get_active_model_info() -> dict:
         "ready": is_model_ready(),
         "chunk_duration_sec": CHUNK_DURATION_SEC,
     }
-
 
 def generate_audio(prompt: str, duration_seconds: float | None = None, seed: int | None = None) -> str:
     """

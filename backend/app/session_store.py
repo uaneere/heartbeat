@@ -1,13 +1,10 @@
-"""
-In-memory хранилище сессий
-"""
+"""In-memory хранилище сессий"""
 
 from uuid import UUID, uuid4
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 from app.models import Profile, SessionContext, ActivityType, GoalType
-
 
 @dataclass
 class SessionState:
@@ -17,8 +14,6 @@ class SessionState:
     context: SessionContext
     current_hr: int
     tick: int = 0
-    movement_intensity: float = 0.5
-    stress_level: float = 0.3
     last_fragment_path: Optional[str] = None
     last_raw_fragment_path: Optional[str] = None
     last_loop_bridge_path: Optional[str] = None
@@ -36,10 +31,8 @@ class SessionState:
             "goal": self.context.goal.value,
         }
 
-
-# Хранилище сессий
+"""Хранилище сессий"""
 _sessions: Dict[UUID, SessionState] = {}
-
 
 def create_session(profile: Profile, context: SessionContext, initial_hr: int) -> SessionState:
     """Создание новой сессии"""
@@ -52,11 +45,9 @@ def create_session(profile: Profile, context: SessionContext, initial_hr: int) -
     _sessions[session.session_id] = session
     return session
 
-
 def get_session(session_id: UUID) -> Optional[SessionState]:
     """Получение сессии по ID"""
     return _sessions.get(session_id)
-
 
 def update_session(session_id: UUID, **kwargs) -> Optional[SessionState]:
     """Обновление сессии"""
@@ -67,14 +58,12 @@ def update_session(session_id: UUID, **kwargs) -> Optional[SessionState]:
                 setattr(session, key, value)
     return session
 
-
 def delete_session(session_id: UUID) -> bool:
     """Удаление сессии"""
     if session_id in _sessions:
         del _sessions[session_id]
         return True
     return False
-
 
 def get_active_sessions() -> list[dict]:
     """Список активных сессий"""
