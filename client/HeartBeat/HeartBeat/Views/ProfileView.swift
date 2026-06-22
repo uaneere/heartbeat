@@ -21,86 +21,69 @@ struct ProfileView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
 
-                    VStack(spacing: 20) {
-                        ProfileInputField(
-                            title: "ВОЗРАСТ",
-                            placeholder: "Например, 20",
-                            text: $appState.userProfile.age
-                        )
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ДАННЫЕ ПОЛЬЗОВАТЕЛЯ")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.textSecondary)
+                            .tracking(1.0)
+                            .padding(.horizontal, 24)
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("ПОЛ")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.textSecondary)
-                            SegmentedControl(
-                                options: Gender.allCases.map(\.title),
-                                selectedOption: Binding(
-                                    get: { appState.userProfile.gender.title },
-                                    set: { title in
-                                        if let gender = Gender.allCases.first(where: { $0.title == title }) {
-                                            appState.userProfile.gender = gender
-                                        }
-                                    }
-                                )
+                        VStack(spacing: 20) {
+                            ProfileInputField(
+                                title: "ВОЗРАСТ",
+                                placeholder: "Введите свой возраст",
+                                text: $appState.userProfile.age
                             )
-                        }
 
-                        HStack(spacing: 16) {
-                            ProfileInputField(title: "РОСТ (СМ)", placeholder: "175", text: $appState.userProfile.height)
-                            ProfileInputField(title: "ВЕС (КГ)", placeholder: "70", text: $appState.userProfile.weight)
-                        }
+                            ProfileInputField(
+                                title: "ПУЛЬС В ПОКОЕ",
+                                placeholder: "65",
+                                text: $appState.userProfile.restingHr
+                            )
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("ДАВЛЕНИЕ (ВЕРХНЕЕ/НИЖНЕЕ)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.textSecondary)
-                                .tracking(1.0)
-                            HStack(spacing: 12) {
-                                ProfileInputField(title: "", placeholder: "120", text: $appState.userProfile.systolicPressure)
-                                Text("/")
-                                    .font(.system(size: 20, weight: .light))
-                                    .foregroundColor(.textSecondary)
-                                ProfileInputField(title: "", placeholder: "80", text: $appState.userProfile.diastolicPressure)
-                            }
                         }
-
-                        HStack(spacing: 16) {
-                            ProfileInputField(title: "ПУЛЬС (ПОКОЙ)", placeholder: "65", text: $appState.userProfile.restingHr)
-                            ProfileInputField(title: "ПУЛЬС (АКТИВ)", placeholder: "130", text: $appState.userProfile.activeHr)
-                        }
+                        .padding(24)
+                        .background(.white)
+                        .cornerRadius(32)
+                        .padding(.horizontal, 16)
                     }
-                    .padding(24)
-                    .background(.white)
-                    .cornerRadius(32)
-                    .padding(.horizontal, 16)
 
                     VStack(spacing: 20) {
-                        HStack {
-                            Text("Хронические заболевания")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.textMain)
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Хронические заболевания")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.textMain)
+                                Spacer()
 
-                            HStack(spacing: 0) {
-                                Text("Нет")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .frame(width: 50, height: 34)
-                                    .background(!appState.userProfile.hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(!appState.userProfile.hasDiseases ? .white : .textSecondary)
-                                    .cornerRadius(10)
-                                    .onTapGesture { appState.userProfile.hasDiseases = false }
+                                HStack(spacing: 0) {
+                                    Text("Нет")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .frame(width: 50, height: 34)
+                                        .background(!appState.userProfile.hasDiseases ? .primaryWine : .clear)
+                                        .foregroundColor(!appState.userProfile.hasDiseases ? .white : .textSecondary)
+                                        .cornerRadius(10)
+                                        .onTapGesture {
+                                            appState.userProfile.hasDiseases = false
+                                            appState.userProfile.selectedConditions.removeAll()
+                                        }
 
-                                Text("Есть")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .frame(width: 50, height: 34)
-                                    .background(appState.userProfile.hasDiseases ? .primaryWine : .clear)
-                                    .foregroundColor(appState.userProfile.hasDiseases ? .white : .textSecondary)
-                                    .cornerRadius(10)
-                                    .onTapGesture { appState.userProfile.hasDiseases = true }
+                                    Text("Есть")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .frame(width: 50, height: 34)
+                                        .background(appState.userProfile.hasDiseases ? .primaryWine : .clear)
+                                        .foregroundColor(appState.userProfile.hasDiseases ? .white : .textSecondary)
+                                        .cornerRadius(10)
+                                        .onTapGesture { appState.userProfile.hasDiseases = true }
+                                }
+                                .padding(3)
+                                .background(.accentBackground)
+                                .cornerRadius(12)
                             }
-                            .padding(3)
-                            .background(.accentBackground)
-                            .cornerRadius(12)
+
+                            Text("Влияют на максимальный BPM, плавность смены темпа и настроение музыки")
+                                .font(.system(size: 13))
+                                .foregroundColor(.textSecondary)
                         }
 
                         if appState.userProfile.hasDiseases {
@@ -110,19 +93,25 @@ struct ProfileView: View {
 
                             VStack(spacing: 18) {
                                 ForEach(ConditionMapping.items, id: \.apiKey) { item in
-                                    DiseaseRow(
-                                        title: item.title,
-                                        isChecked: Binding(
-                                            get: { appState.userProfile.selectedConditions.contains(item.apiKey) },
-                                            set: { checked in
-                                                if checked {
-                                                    appState.userProfile.selectedConditions.insert(item.apiKey)
-                                                } else {
-                                                    appState.userProfile.selectedConditions.remove(item.apiKey)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        DiseaseRow(
+                                            title: item.title,
+                                            isChecked: Binding(
+                                                get: { appState.userProfile.selectedConditions.contains(item.apiKey) },
+                                                set: { checked in
+                                                    if checked {
+                                                        appState.userProfile.selectedConditions.insert(item.apiKey)
+                                                    } else {
+                                                        appState.userProfile.selectedConditions.remove(item.apiKey)
+                                                    }
                                                 }
-                                            }
+                                            )
                                         )
-                                    )
+                                        Text(item.effect)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.textSecondary)
+                                            .padding(.leading, 36)
+                                    }
                                 }
                             }
                         }
@@ -137,6 +126,7 @@ struct ProfileView: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.textMain)
                             .padding(.horizontal, 24)
+
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 14) {

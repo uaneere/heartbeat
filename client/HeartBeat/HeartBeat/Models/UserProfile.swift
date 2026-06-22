@@ -2,13 +2,7 @@ import Foundation
 
 struct UserProfile: Codable {
     var age: String = "25"
-    var gender: Gender = .male
-    var height: String = "175"
-    var weight: String = "70"
-    var systolicPressure: String = "120"
-    var diastolicPressure: String = "80"
     var restingHr: String = "65"
-    var activeHr: String = "130"
     var hasDiseases: Bool = false
     var selectedConditions: Set<String> = []
     var selectedGenres: Set<String> = []
@@ -27,9 +21,8 @@ struct UserProfile: Codable {
         APIProfile(
             age: Int(age) ?? 25,
             restingHr: Int(restingHr) ?? 65,
-            avgActiveHr: Int(activeHr),
             preferredGenres: Array(selectedGenres),
-            conditions: Array(selectedConditions)
+            conditions: hasDiseases ? Array(selectedConditions) : []
         )
     }
 

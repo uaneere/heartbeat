@@ -105,8 +105,25 @@ struct MusicGenreCard: View {
             }
         }
         .frame(width: 140, height: 180)
-        .background(isSelected ? Color.primaryWine : Color.green.opacity(0.7))
-        .cornerRadius(24)
+                .background(
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 140, height: 180)
+                        .clipped()
+                        .overlay(
+
+                            isSelected ?
+                            Color.primaryWine.opacity(0.6) :
+                            Color.black.opacity(0.3)
+                        )
+                )
+                .cornerRadius(24)
+                
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(isSelected ? Color.primaryWine : Color.clear, lineWidth: 3)
+                )
         .overlay(
             VStack {
                 HStack {

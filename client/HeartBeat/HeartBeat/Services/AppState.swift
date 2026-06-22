@@ -140,15 +140,7 @@ final class AppState {
     private func sendRealHeartRateToBackend(heartRate: Int) async {
         guard let sessionId, isSessionActive else { return }
 
-        let resting = Int(userProfile.restingHr) ?? 65
-        let active = Int(userProfile.activeHr) ?? 130
-        let intensity = min(1.0, max(0.0, Double(heartRate - resting) / Double(max(active - resting, 1))))
-
-        let update = HeartRateUpdate(
-            currentHr: heartRate,
-            movementIntensity: intensity,
-            stressLevel: 0.3
-        )
+        let update = HeartRateUpdate(currentHr: heartRate)
 
         do {
             let response = try await api.updateHeartRate(sessionId: sessionId, update: update)

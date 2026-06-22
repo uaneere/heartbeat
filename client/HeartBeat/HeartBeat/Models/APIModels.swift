@@ -89,14 +89,12 @@ enum EnergyLevel: String, Codable {
 struct APIProfile: Codable {
     var age: Int
     var restingHr: Int
-    var avgActiveHr: Int?
     var preferredGenres: [String]
     var conditions: [String]
 
     enum CodingKeys: String, CodingKey {
         case age
         case restingHr = "resting_hr"
-        case avgActiveHr = "avg_active_hr"
         case preferredGenres = "preferred_genres"
         case conditions
     }
@@ -134,13 +132,9 @@ struct StartSessionResponse: Codable {
 
 struct HeartRateUpdate: Codable {
     let currentHr: Int
-    let movementIntensity: Double
-    let stressLevel: Double
 
     enum CodingKeys: String, CodingKey {
         case currentHr = "current_hr"
-        case movementIntensity = "movement_intensity"
-        case stressLevel = "stress_level"
     }
 }
 
@@ -261,12 +255,12 @@ enum GenreMapping {
 }
 
 enum ConditionMapping {
-    static let items: [(title: String, apiKey: String)] = [
-        ("Гипертония", "hypertension"),
-        ("Аритмия", "arrhythmia"),
-        ("Бронхиальная астма", "asthma"),
-        ("Сахарный диабет", "diabetes"),
-        ("Ишемическая болезнь", "ischemic_heart_disease"),
+    static let items: [(title: String, apiKey: String, effect: String)] = [
+        ("Гипертония", "hypertension", "BPM ≤ 120, спокойная музыка"),
+        ("Аритмия", "arrhythmia", "BPM ≤ 110, плавная смена темпа"),
+        ("Бронхиальная астма", "asthma", "BPM ≤ 125"),
+        ("Сахарный диабет", "diabetes", "BPM ≥ 70"),
+        ("Ишемическая болезнь", "ischemic_heart_disease", "BPM ≤ 115, спокойная музыка"),
     ]
 }
 
